@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+  --color-unahur: #5FA92C;
+  --color-unahur-dark: #4d8a24;
+}
