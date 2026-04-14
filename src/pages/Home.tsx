@@ -1,6 +1,6 @@
 import { Calendar, DollarSign, FileText, ClipboardList, Search } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { type Persona } from "./Layout"; // Importamos el tipo
+import { type Persona } from "../components/Layout"; // Importamos el tipo
 
 export function Home() {
   const navigate = useNavigate(); // Herramienta para navegar
