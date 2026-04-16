@@ -188,5 +188,40 @@ export const mockRecetas: Receta[] = [
     id: "REC-005", fecha: "2026-04-09", idIntegrante: "103", medicamento: "Vitamina C",
     cantidad: 3, presentacion: "Gotas", observaciones: "Suplemento",
     estado: "Rechazado", fechaEstado: "2026-04-13", mensajeObservacion: "Venta libre, no requiere autorización médica."
+  },
+  {
+    id: "REC-006", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
+  },
+  {
+    id: "REC-007", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
+  },
+  {
+    id: "REC-008", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
+  },
+  {
+    id: "REC-009", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
+  },
+  {
+    id: "REC-010", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
+  },
+  {
+    id: "REC-011", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
+  },
+  {
+    id: "REC-012", fecha: "2026-04-08", idIntegrante: "101", medicamento: "Tafirol 500mg",
+    cantidad: 2, presentacion: "Pastillas", observaciones: "Hipertensión",
+    estado: "Recibido", fechaEstado: "2026-04-09" 
   }
 ];

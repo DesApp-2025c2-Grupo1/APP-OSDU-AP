@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Reintegros } from "./pages/Reintegros";
+import {Recetas} from "./pages/Recetas";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} /> {/* index = la ruta por defecto ("/") */}
             <Route path="reintegros" element={<Reintegros />} />
+            <Route path="recetas" element={<Recetas />} />
             {/* Las demás las agregaremos después: <Route path="turnos" element={<Turnos />} /> */}
           </Route>
         </Routes>
