@@ -5,6 +5,7 @@ import { Reintegros } from "./pages/Reintegros";
 import { Recetas } from "./pages/Recetas";
 import { Autorizaciones } from "./pages/Autorizaciones";
 import { ConsultarCartilla } from "./pages/ConsultarCartilla";
+import { Turnos } from "./pages/Turnos";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
             <Route path="recetas" element={<Recetas />} />
             <Route path="autorizaciones" element={<Autorizaciones />} />
             <Route path="cartilla" element={<ConsultarCartilla />} />
+            <Route path="turnos" element={<Turnos />} />
           </Route>
         </Routes>
       </div>

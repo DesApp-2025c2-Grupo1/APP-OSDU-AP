@@ -1,6 +1,54 @@
 //TIPOS COMPARTIDOS
 
 export type EstadoOperacion = "Recibido" | "En análisis" | "Observado" | "Aprobado" | "Rechazado";
+export type EstadoTurno = "Reservado" | "Completado" | "Cancelado";
+export type FiltroTurno = "PROXIMOS" | "COMPLETADOS" | "CANCELADOS";
+
+export interface Turno {
+  id: string;
+  idIntegrante: string;
+  medico: string;
+  especialidad: string;
+  lugar: string;
+  fecha: string;
+  horario: string;
+  estado: EstadoTurno;
+}
+
+export interface TurnoDisponible {
+  id: string;
+  medico: string;
+  especialidad: string;
+  lugar: string;
+  fecha: string;
+  horarios: string[];
+}
+
+export const mockTurnos: Turno[] = [
+  { id: "TU-001", idIntegrante: "101", medico: "Dr. Pérez",   especialidad: "Odontología",   lugar: "Consultorio Centro",        fecha: "2026-04-25", horario: "09:00", estado: "Reservado"  },
+  { id: "TU-002", idIntegrante: "102", medico: "Dra. Gómez",  especialidad: "Pediatría",      lugar: "Clínica Trinidad",          fecha: "2026-04-29", horario: "10:00", estado: "Reservado"  },
+  { id: "TU-003", idIntegrante: "103", medico: "Dr. Rossi",   especialidad: "Traumatología",  lugar: "Sanatorio Finochietto",     fecha: "2026-05-05", horario: "08:00", estado: "Reservado"  },
+  { id: "TU-004", idIntegrante: "101", medico: "Dra. Silva",  especialidad: "Clínica Médica", lugar: "Hospital Alemán",           fecha: "2026-03-10", horario: "08:30", estado: "Completado" },
+  { id: "TU-005", idIntegrante: "102", medico: "Dra. Paz",    especialidad: "Cardiología",    lugar: "Instituto Cardiovascular",  fecha: "2026-03-20", horario: "11:00", estado: "Completado" },
+  { id: "TU-006", idIntegrante: "101", medico: "Dr. López",   especialidad: "Traumatología",  lugar: "Sanatorio Oeste",           fecha: "2026-04-10", horario: "09:00", estado: "Cancelado"  },
+  { id: "TU-007", idIntegrante: "103", medico: "Dra. Ruiz",   especialidad: "Dermatología",   lugar: "Centro Piel",               fecha: "2026-03-28", horario: "14:00", estado: "Cancelado"  },
+];
+
+export const mockTurnosDisponibles: TurnoDisponible[] = [
+  { id: "TD-001", medico: "Dr. Pérez",  especialidad: "Odontología",   lugar: "Consultorio Centro",       fecha: "2026-04-28", horarios: ["09:00", "10:00", "11:00"] },
+  { id: "TD-002", medico: "Dr. Pérez",  especialidad: "Odontología",   lugar: "Consultorio Centro",       fecha: "2026-04-30", horarios: ["09:00", "14:00"]          },
+  { id: "TD-003", medico: "Dra. Silva", especialidad: "Clínica Médica",lugar: "Hospital Alemán",          fecha: "2026-04-24", horarios: ["08:30", "09:30", "15:00"] },
+  { id: "TD-004", medico: "Dra. Silva", especialidad: "Clínica Médica",lugar: "Hospital Alemán",          fecha: "2026-05-05", horarios: ["10:00", "11:00"]          },
+  { id: "TD-005", medico: "Dra. Gómez", especialidad: "Pediatría",     lugar: "Clínica Trinidad",         fecha: "2026-05-06", horarios: ["09:00", "10:00"]          },
+  { id: "TD-006", medico: "Dra. Gómez", especialidad: "Pediatría",     lugar: "Clínica Trinidad",         fecha: "2026-05-07", horarios: ["14:00", "15:00", "16:00"] },
+  { id: "TD-007", medico: "Dr. López",  especialidad: "Traumatología", lugar: "Sanatorio Oeste",          fecha: "2026-05-02", horarios: ["08:00", "09:00"]          },
+  { id: "TD-008", medico: "Dr. López",  especialidad: "Traumatología", lugar: "Sanatorio Oeste",          fecha: "2026-05-03", horarios: ["10:00", "11:00"]          },
+  { id: "TD-009", medico: "Dr. Rossi",  especialidad: "Traumatología", lugar: "Sanatorio Finochietto",    fecha: "2026-04-24", horarios: ["09:00", "16:00"]          },
+  { id: "TD-010", medico: "Dra. Ruiz",  especialidad: "Dermatología",  lugar: "Centro Piel",              fecha: "2026-04-22", horarios: ["09:00", "10:30", "14:00"] },
+  { id: "TD-011", medico: "Dra. Ruiz",  especialidad: "Dermatología",  lugar: "Centro Piel",              fecha: "2026-04-30", horarios: ["09:00", "10:00"]          },
+  { id: "TD-012", medico: "Dra. Paz",   especialidad: "Cardiología",   lugar: "Instituto Cardiovascular", fecha: "2026-04-25", horarios: ["11:00", "12:00"]          },
+  { id: "TD-013", medico: "Dra. Paz",   especialidad: "Cardiología",   lugar: "Instituto Cardiovascular", fecha: "2026-05-02", horarios: ["09:00", "10:00"]          },
+];
 
 export const ESPECIALIDADES = [
   "Clínica Médica", "Pediatría", "Odontología", "Oftalmología",
