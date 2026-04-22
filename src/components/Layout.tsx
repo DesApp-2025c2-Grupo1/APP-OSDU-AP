@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, Outlet } from "react-router-dom"; // 🔹 CLAVE: Esto inyecta las páginas hijas
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { UserCircle, ChevronDown, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
-// === EXPORTAMOS LA INTERFAZ PARA USARLA EN OTRAS PÁGINAS ===
 export interface Persona {
   id: string;
   nombre: string;
@@ -40,6 +40,14 @@ const obtenerIntegrantesVisibles = (usuarioLogueado: Persona, grupoCompleto: Per
 };
 
 export function Layout() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   const [userLogueado] = useState<Persona>({
     id: "101",
     nombre: "Octavio",
@@ -125,7 +133,10 @@ export function Layout() {
                 );
               })}
               <div className="p-1.5 border-t border-gray-100 bg-gray-50/30">
-                <button className="w-full flex items-center justify-center gap-2 px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg font-bold text-[10px] uppercase transition-colors tracking-widest">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg font-bold text-[10px] uppercase transition-colors tracking-widest"
+                >
                   <LogOut size={14} /> Cerrar Sesión
                 </button>
               </div>
