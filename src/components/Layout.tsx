@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { UserCircle, ChevronDown, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { usuariosAPI } from "../services/api";
 
 export interface Persona {
   id: string;
@@ -40,33 +41,68 @@ const obtenerIntegrantesVisibles = (usuarioLogueado: Persona, grupoCompleto: Per
 };
 
 export function Layout() {
-  const { logout } = useAuth();
+  const { logout, usuario } = useAuth();
   const navigate = useNavigate();
+
+  const [userLogueado, setUserLogueado] = useState<Persona | null>(null);
+  const [grupoFamiliar, setGrupoFamiliar] = useState<Persona[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        if (!usuario?.id_usuario) return;
+
+        const meResponse = await usuariosAPI.getMe(usuario.id_usuario);
+        const userData = meResponse.data;
+
+        setUserLogueado({
+          id: String(userData.id_usuario),
+          nombre: userData.nombre || "Usuario",
+          apellido: userData.apellido || "",
+          fechaNacimiento: "1990-05-15",
+          rol: "Titular"
+        });
+
+        const familiaResponse = await usuariosAPI.getFamilia(usuario.id_usuario);
+        const familiaData = Array.isArray(familiaResponse.data) ? familiaResponse.data : [];
+
+        const familiaTransformed: Persona[] = familiaData
+          .filter((f: any) => f.id_usuario !== usuario.id_usuario)
+          .map((f: any) => ({
+            id: String(f.id_usuario),
+            nombre: f.nombre || "Usuario",
+            apellido: f.apellido || "",
+            fechaNacimiento: "1990-05-15",
+            rol: (f.relacion === "Conyuge" || f.relacion === "Esposa") ? "Conyuge" : "Hijo"
+          }));
+
+        setGrupoFamiliar(familiaTransformed);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [usuario?.id_usuario]);
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
   };
 
-  const [userLogueado] = useState<Persona>({
-    id: "101",
-    nombre: "Octavio",
-    apellido: "Pérez",
-    fechaNacimiento: "1990-05-15",
-    rol: "Titular"
-  });
-
-  const [grupoFamiliar] = useState<Persona[]>([
-    { id: "102", nombre: "Rocío", apellido: "González", fechaNacimiento: "1992-03-20", rol: "Conyuge" },
-    { id: "103", nombre: "Lucas", apellido: "Pérez", fechaNacimiento: "2018-07-10", rol: "Hijo" },
-    { id: "104", nombre: "Mía", apellido: "Pérez", fechaNacimiento: "2020-02-15", rol: "Hijo" },
-    { id: "105", nombre: "Santi", apellido: "Pérez", fechaNacimiento: "2002-11-20", rol: "Hijo" },
-  ]);
-
-  const integrantesVisibles = obtenerIntegrantesVisibles(userLogueado, grupoFamiliar);
-  const [activeProfile, setActiveProfile] = useState<Persona>(userLogueado);
+  const integrantesVisibles = userLogueado ? obtenerIntegrantesVisibles(userLogueado, grupoFamiliar) : [];
+  const [activeProfile, setActiveProfile] = useState<Persona | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (userLogueado && !activeProfile) {
+      setActiveProfile(userLogueado);
+    }
+  }, [userLogueado, activeProfile]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,7 +132,7 @@ export function Layout() {
           >
             <div className="text-right hidden sm:block">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none">Usuario</p>
-              <p className="text-xs font-semibold text-gray-600">{userLogueado.nombre}</p>
+              <p className="text-xs font-semibold text-gray-600">{userLogueado?.nombre || "Cargando..."}</p>
             </div>
             <div className="text-unahur mx-1"><UserCircle size={20} /></div>
             <ChevronDown
@@ -109,20 +145,22 @@ export function Layout() {
 
           {isMenuOpen && (
             <div className="absolute right-0 mt-2 w-60 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-150">
-              <button 
+              {userLogueado && (
+              <button
                 onClick={() => { setActiveProfile(userLogueado); setIsMenuOpen(false); }}
                 className={`w-full text-left px-5 py-3.5 text-sm transition-colors border-l-4 ${
-                  activeProfile.id === userLogueado.id ? "border-unahur bg-gray-50 text-gray-900 font-bold" : "border-transparent text-gray-600 hover:bg-gray-50"
+                  activeProfile?.id === userLogueado.id ? "border-unahur bg-gray-50 text-gray-900 font-bold" : "border-transparent text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 {userLogueado.nombre} {userLogueado.apellido}
               </button>
+              )}
 
-              {integrantesVisibles.map((familiar) => {
-                const isSelected = activeProfile.id === familiar.id;
+              {integrantesVisibles && integrantesVisibles.map((familiar) => {
+                const isSelected = activeProfile?.id === familiar.id;
                 return (
-                  <button 
-                    key={familiar.id} 
+                  <button
+                    key={familiar.id}
                     onClick={() => { setActiveProfile(familiar); setIsMenuOpen(false); }}
                     className={`w-full text-left px-5 py-3.5 text-sm transition-colors border-l-4 ${
                       isSelected ? "border-unahur bg-gray-50 text-gray-900 font-bold" : "border-transparent text-gray-600 hover:bg-gray-50 border-t border-gray-50"

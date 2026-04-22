@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useCallback } from "react";
-
+import { usuariosAPI } from "../services/api";
 
 export interface UsuarioAuth {
-  id: string;
+  id?: string;
+  id_usuario?: number;
   nombre: string;
   apellido: string;
   dni: string;
+  email?: string;
 }
 
 interface AuthContextType {
@@ -43,15 +45,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (dni: string, password: string): Promise<{ ok: boolean; mensaje?: string }> => {
-      // Simula latencia de red (~800 ms)
-      await new Promise((r) => setTimeout(r, 800));
+      try {
+        const response = await usuariosAPI.login(dni, password);
+        const userData = response.data;
 
-      if (dni.trim() === MOCK_USUARIO.dni && password === MOCK_PASSWORD) {
-        setUsuario(MOCK_USUARIO);
-        localStorage.setItem("auth_usuario", JSON.stringify(MOCK_USUARIO));
+        const usuario: UsuarioAuth = {
+          id_usuario: userData.id_usuario,
+          id: String(userData.id_usuario),
+          nombre: userData.nombre || "Usuario",
+          apellido: userData.apellido || "",
+          dni: userData.dni,
+          email: userData.email
+        };
+
+        setUsuario(usuario);
+        localStorage.setItem("auth_usuario", JSON.stringify(usuario));
         return { ok: true };
+      } catch (error: any) {
+        const mensaje = error.response?.status === 401
+          ? "DNI o contraseña incorrectos."
+          : "Error en la autenticación. Intenta de nuevo.";
+        return { ok: false, mensaje };
       }
-      return { ok: false, mensaje: "DNI o contraseña incorrectos." };
     },
     []
   );
