@@ -8,7 +8,7 @@ export interface Persona {
   id: string;
   nombre: string;
   apellido: string;
-  fechaNacimiento: string; 
+  fechaNacimiento: string;
   rol: "Titular" | "Conyuge" | "Hijo" | "Hermano" | "Otro";
 }
 
@@ -17,26 +17,35 @@ const calcularEdad = (fechaNac: string) => {
   const cumple = new Date(fechaNac);
   let edad = hoy.getFullYear() - cumple.getFullYear();
   const m = hoy.getMonth() - cumple.getMonth();
-  if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
+
+  if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) {
+    edad--;
+  }
+
   return edad;
 };
 
-const obtenerIntegrantesVisibles = (usuarioLogueado: Persona, grupoCompleto: Persona[]) => {
+const obtenerIntegrantesVisibles = (
+  usuarioLogueado: Persona,
+  grupoCompleto: Persona[]
+) => {
   if (usuarioLogueado.rol === "Titular") {
-    return grupoCompleto.filter(p => {
+    return grupoCompleto.filter((p) => {
       if (p.id === usuarioLogueado.id) return false;
       if (p.rol === "Conyuge") return true;
       if (p.rol === "Hijo" && calcularEdad(p.fechaNacimiento) < 18) return true;
       return false;
     });
   }
+
   if (usuarioLogueado.rol === "Conyuge") {
-    return grupoCompleto.filter(p => {
+    return grupoCompleto.filter((p) => {
       if (p.id === usuarioLogueado.id) return false;
       if (p.rol === "Hijo" && calcularEdad(p.fechaNacimiento) < 18) return true;
       return false;
     });
   }
+
   return [];
 };
 
@@ -46,63 +55,83 @@ export function Layout() {
 
   const [userLogueado, setUserLogueado] = useState<Persona | null>(null);
   const [grupoFamiliar, setGrupoFamiliar] = useState<Persona[]>([]);
+  const [activeProfile, setActiveProfile] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchUserData = async () => {
       try {
-        if (!usuario?.id_usuario) return;
+        if (!usuario?.id_usuario) {
+          if (!cancelled) {
+            setLoading(false);
+            navigate("/login", { replace: true });
+          }
+          return;
+        }
 
         const meResponse = await usuariosAPI.getMe(usuario.id_usuario);
         const userData = meResponse.data;
 
-        setUserLogueado({
+        const titular: Persona = {
           id: String(userData.id_usuario),
           nombre: userData.nombre || "Usuario",
           apellido: userData.apellido || "",
           fechaNacimiento: "1990-05-15",
-          rol: "Titular"
-        });
+          rol: "Titular",
+        };
+
+        if (!cancelled) {
+          setUserLogueado(titular);
+          setActiveProfile(titular);
+        }
 
         const familiaResponse = await usuariosAPI.getFamilia(usuario.id_usuario);
-        const familiaData = Array.isArray(familiaResponse.data) ? familiaResponse.data : [];
+        const familiaData = Array.isArray(familiaResponse.data)
+          ? familiaResponse.data
+          : [];
 
         const familiaTransformed: Persona[] = familiaData
-          .filter((f: any) => f.id_usuario !== usuario.id_usuario)
+          .filter((f: any) => String(f.id_usuario) !== String(usuario.id_usuario))
           .map((f: any) => ({
             id: String(f.id_usuario),
             nombre: f.nombre || "Usuario",
             apellido: f.apellido || "",
             fechaNacimiento: "1990-05-15",
-            rol: (f.relacion === "Conyuge" || f.relacion === "Esposa") ? "Conyuge" : "Hijo"
+            rol:
+              f.relacion === "Conyuge" || f.relacion === "Esposa"
+                ? "Conyuge"
+                : "Hijo",
           }));
 
-        setGrupoFamiliar(familiaTransformed);
-        setLoading(false);
+        if (!cancelled) {
+          setGrupoFamiliar(familiaTransformed);
+        }
       } catch (error) {
         console.error("Error fetching user data:", error);
-        setLoading(false);
+
+        if (!cancelled) {
+          setUserLogueado(null);
+          setGrupoFamiliar([]);
+          setActiveProfile(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchUserData();
-  }, [usuario?.id_usuario]);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
-  };
-
-  const integrantesVisibles = userLogueado ? obtenerIntegrantesVisibles(userLogueado, grupoFamiliar) : [];
-  const [activeProfile, setActiveProfile] = useState<Persona | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (userLogueado && !activeProfile) {
-      setActiveProfile(userLogueado);
-    }
-  }, [userLogueado, activeProfile]);
+    return () => {
+      cancelled = true;
+    };
+  }, [usuario?.id_usuario, navigate]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -110,31 +139,67 @@ export function Layout() {
         setIsMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const integrantesVisibles =
+    userLogueado ? obtenerIntegrantesVisibles(userLogueado, grupoFamiliar) : [];
+
+  if (loading || !activeProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+        Cargando datos del usuario...
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-10 font-sans">
-      {/* 🔹 NAVBAR EXACTAMENTE IGUAL */}
       <nav className="flex items-center justify-between mb-8 bg-white p-3 px-5 rounded-xl shadow-sm border border-blue-50 relative">
         <div className="flex items-center gap-2">
-          <Link to="/" className="w-8 h-8 bg-unahur rounded flex items-center justify-center text-white font-black text-lg">U</Link>
-          <span className="font-bold text-gray-700 text-base tracking-tight">Medicina Integral</span>
+          <Link
+            to="/"
+            className="w-8 h-8 bg-unahur rounded flex items-center justify-center text-white font-black text-lg"
+          >
+            U
+          </Link>
+          <span className="font-bold text-gray-700 text-base tracking-tight">
+            Medicina Integral
+          </span>
         </div>
 
         <div className="relative" ref={menuRef}>
-          <button 
+          <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className={`flex items-center gap-2 p-1.5 px-3 rounded-lg border transition-all cursor-pointer ${
-              isMenuOpen ? "border-unahur bg-blue-50/50 shadow-sm" : "border-gray-200 bg-gray-50"
+              isMenuOpen
+                ? "border-unahur bg-blue-50/50 shadow-sm"
+                : "border-gray-200 bg-gray-50"
             }`}
           >
             <div className="text-right hidden sm:block">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none">Usuario</p>
-              <p className="text-xs font-semibold text-gray-600">{userLogueado?.nombre || "Cargando..."}</p>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider leading-none">
+                Usuario
+              </p>
+              <p className="text-xs font-semibold text-gray-600">
+                {activeProfile.nombre}
+              </p>
             </div>
-            <div className="text-unahur mx-1"><UserCircle size={20} /></div>
+
+            <div className="text-unahur mx-1">
+              <UserCircle size={20} />
+            </div>
+
             <ChevronDown
               size={14}
               className={`text-gray-400 transition-transform duration-300 ${
@@ -146,30 +211,42 @@ export function Layout() {
           {isMenuOpen && (
             <div className="absolute right-0 mt-2 w-60 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-150">
               {userLogueado && (
-              <button
-                onClick={() => { setActiveProfile(userLogueado); setIsMenuOpen(false); }}
-                className={`w-full text-left px-5 py-3.5 text-sm transition-colors border-l-4 ${
-                  activeProfile?.id === userLogueado.id ? "border-unahur bg-gray-50 text-gray-900 font-bold" : "border-transparent text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {userLogueado.nombre} {userLogueado.apellido}
-              </button>
+                <button
+                  onClick={() => {
+                    setActiveProfile(userLogueado);
+                    setIsMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-5 py-3.5 text-sm transition-colors border-l-4 ${
+                    activeProfile.id === userLogueado.id
+                      ? "border-unahur bg-gray-50 text-gray-900 font-bold"
+                      : "border-transparent text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {userLogueado.nombre} {userLogueado.apellido}
+                </button>
               )}
 
-              {integrantesVisibles && integrantesVisibles.map((familiar) => {
-                const isSelected = activeProfile?.id === familiar.id;
+              {integrantesVisibles.map((familiar) => {
+                const isSelected = activeProfile.id === familiar.id;
+
                 return (
                   <button
                     key={familiar.id}
-                    onClick={() => { setActiveProfile(familiar); setIsMenuOpen(false); }}
+                    onClick={() => {
+                      setActiveProfile(familiar);
+                      setIsMenuOpen(false);
+                    }}
                     className={`w-full text-left px-5 py-3.5 text-sm transition-colors border-l-4 ${
-                      isSelected ? "border-unahur bg-gray-50 text-gray-900 font-bold" : "border-transparent text-gray-600 hover:bg-gray-50 border-t border-gray-50"
+                      isSelected
+                        ? "border-unahur bg-gray-50 text-gray-900 font-bold"
+                        : "border-transparent text-gray-600 hover:bg-gray-50 border-t border-gray-50"
                     }`}
                   >
                     {familiar.nombre} {familiar.apellido}
                   </button>
                 );
               })}
+
               <div className="p-1.5 border-t border-gray-100 bg-gray-50/30">
                 <button
                   onClick={handleLogout}
@@ -183,7 +260,6 @@ export function Layout() {
         </div>
       </nav>
 
-      {/* 🔹 ACÁ MAGIA: Outlet renderiza las páginas hijas y les pasa el perfil activo */}
       <main>
         <Outlet context={{ activeProfile }} />
       </main>
