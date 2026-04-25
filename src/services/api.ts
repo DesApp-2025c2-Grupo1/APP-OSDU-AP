@@ -1,0 +1,70 @@
+const API_BASE_URL = "http://localhost:9002";
+
+export interface AffiliateData {
+  document_number: string;
+  document_type: string;
+  full_name?: string;
+  email?: string;
+  family_group?: FamilyMember[];
+}
+
+export interface FamilyMember {
+  full_name: string;
+  relationship: string;
+  document_number: string;
+}
+
+export const api = {
+  // Auth
+  login: async (email: string, password: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      credentials: "include", //para que se envie la cookie
+    });
+    if (!response.ok) throw new Error("Login failed");
+    return response.json();
+  },
+
+  // Affiliates
+  registerAffiliate: async (data: AffiliateData) => {
+    const response = await fetch(`${API_BASE_URL}/affiliates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Registration failed");
+    return response.json();
+  },
+
+  getAffiliates: async (status?: boolean) => {
+    const url = new URL(`${API_BASE_URL}/affiliates`);
+    if (status !== undefined) url.searchParams.append("status", status.toString());
+
+    const response = await fetch(url.toString(), {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error fetching affiliates");
+    return response.json();
+  },
+
+  activateAffiliate: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/${id}/activate`, {
+      method: "PUT",
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error activating affiliate");
+    return response.json();
+  },
+
+  deactivateAffiliate: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/${id}/deactivate`, {
+      method: "PUT",
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error deactivating affiliate");
+    return response.json();
+  },
+};
