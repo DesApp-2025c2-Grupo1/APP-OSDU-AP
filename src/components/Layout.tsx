@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { UserCircle, ChevronDown, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { usuariosAPI } from "../services/api";
@@ -52,6 +52,7 @@ const obtenerIntegrantesVisibles = (
 export function Layout() {
   const { logout, usuario } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // Agregado: para obtener la ruta actual
 
   const [userLogueado, setUserLogueado] = useState<Persona | null>(null);
   const [grupoFamiliar, setGrupoFamiliar] = useState<Persona[]>([]);
@@ -69,7 +70,10 @@ export function Layout() {
         if (!usuario?.id_usuario) {
           if (!cancelled) {
             setLoading(false);
-            navigate("/login", { replace: true });
+            // CORRECCIÓN: Solo redirige si NO está ya en la página de login
+            if (location.pathname !== "/login") {
+              navigate("/login", { replace: true });
+            }
           }
           return;
         }
@@ -131,7 +135,7 @@ export function Layout() {
     return () => {
       cancelled = true;
     };
-  }, [usuario?.id_usuario, navigate]);
+  }, [usuario?.id_usuario, navigate, location.pathname]); // Agregado location.pathname a dependencias
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -154,6 +158,11 @@ export function Layout() {
 
   const integrantesVisibles =
     userLogueado ? obtenerIntegrantesVisibles(userLogueado, grupoFamiliar) : [];
+
+  // CORRECCIÓN: Si estamos en el login y no hay perfil, mostramos el Outlet directamente (el formulario de login)
+  if (!activeProfile && location.pathname === "/login") {
+    return <Outlet />;
+  }
 
   if (loading || !activeProfile) {
     return (
