@@ -105,11 +105,11 @@ export function AdminAffiliates() {
               {affiliates.map((affiliate) => (
                 <tr key={affiliate.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-8 py-6">
-                    <p className="font-bold text-gray-900">{affiliate.full_name || "Sin Nombre"}</p>
+                    <p className="font-bold text-gray-900">{affiliate.first_name + " " + affiliate.last_name || "Sin Nombre"}</p>
                     <p className="text-sm text-gray-400">{affiliate.email || "Sin Email"}</p>
                   </td>
                   <td className="px-8 py-6">
-                    <p className="text-sm font-semibold text-gray-600">{affiliate.document_type} {affiliate.document_number}</p>
+                    <p className="text-sm font-semibold text-gray-600">{affiliate.document_type + " " + affiliate.document_number}</p>
                   </td>
                   <td className="px-8 py-6">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${affiliate.status ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>

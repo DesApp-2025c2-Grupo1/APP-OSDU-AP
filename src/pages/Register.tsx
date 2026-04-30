@@ -13,10 +13,19 @@ export function Register() {
 
   // Form State
   const [formData, setFormData] = useState({
+    credencial_number: "",
     document_number: "",
     document_type: "DNI",
-    full_name: "",
+    birth_date: "",
+    first_name: "",
+    last_name: "",
     email: "",
+    phone: "",
+    address: "",
+    city: "",
+    province: "",
+    postal_code: "",
+    country: "",
     family_members: [] as FamilyMember[],
   });
 
@@ -48,10 +57,19 @@ export function Register() {
     setError(null);
     try {
       await api.registerAffiliate({
+        credencial_number: formData.credencial_number,
         document_number: formData.document_number,
         document_type: formData.document_type,
-        full_name: formData.full_name,
+        birth_date: formData.birth_date,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         email: formData.email,
+        phone: formData.phone,
+        address: formData.address || undefined,
+        city: formData.city || undefined,
+        province: formData.province || undefined,
+        postal_code: formData.postal_code || undefined,
+        country: formData.country || undefined,
         family_group: formData.family_members,
       });
       setIsModalOpen(true);
@@ -114,15 +132,59 @@ export function Register() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nº Credencial</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.credencial_number}
+                    onChange={(e) => setFormData({ ...formData, credencial_number: e.target.value })}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                    placeholder="Ej: 01-00000001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.birth_date}
+                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
                 <input
                   type="text"
                   required
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
-                  placeholder="Juan Pérez"
+                  placeholder="Juan"
+                />
+                <input
+                  type="text"
+                  required
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                  placeholder="Pérez"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                  placeholder="Ej: 2324123456"
                 />
               </div>
 
@@ -136,6 +198,64 @@ export function Register() {
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   placeholder="juan@ejemplo.com"
                 />
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <h4 className="text-sm font-bold text-gray-800 mb-3">Dirección (Opcional)</h4>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Calle y Altura</label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                      placeholder="Ej: Calle Falsa 123"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Ciudad</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                      placeholder="Ej: Hurlingham"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Provincia</label>
+                    <input
+                      type="text"
+                      value={formData.province}
+                      onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                      placeholder="Ej: Bs As"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">C. Postal</label>
+                    <input
+                      type="text"
+                      value={formData.postal_code}
+                      onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                      placeholder="1686"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">País</label>
+                    <input
+                      type="text"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                      placeholder="Argentina"
+                    />
+                  </div>
+                </div>
               </div>
 
               <button
