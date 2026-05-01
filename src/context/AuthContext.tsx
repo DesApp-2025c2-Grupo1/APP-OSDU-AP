@@ -8,6 +8,7 @@ export interface UsuarioAuth {
   dni: string;
   email?: string;
   role?: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   usuario: UsuarioAuth | null;
   login: (email: string, password: string) => Promise<{ ok: boolean; mensaje?: string }>;
   logout: () => void;
+  updateUsuario: (datos: Partial<UsuarioAuth>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -45,7 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           apellido: "",
           dni: "",
           email: user.email,
-          role: user.role
+          role: user.role,
+          mustChangePassword: user.must_change_password
         };
 
         setUsuario(usuarioModel);
@@ -62,11 +65,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setUsuario(null);
     localStorage.removeItem("auth_usuario");
-    // Opcional: Llamar al backend para limpiar la cookie
+  }, []);
+
+  const updateUsuario = useCallback((datos: Partial<UsuarioAuth>) => {
+    setUsuario(prev => {
+      if (!prev) return null;
+      const nuevo = { ...prev, ...datos };
+      localStorage.setItem("auth_usuario", JSON.stringify(nuevo));
+      return nuevo;
+    });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, usuario, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, usuario, login, logout, updateUsuario }}>
       {children}
     </AuthContext.Provider>
   );

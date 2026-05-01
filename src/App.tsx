@@ -12,9 +12,20 @@ import { Turnos } from "./pages/Turnos";
 import { Welcome } from "./pages/Welcome";
 import { Register } from "./pages/Register";
 import { AdminAffiliates } from "./pages/AdminAffiliates";
+import { ChangePassword } from "./pages/ChangePassword";
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, usuario } = useAuth();
+
+  // Si el usuario debe cambiar la contraseña, solo puede ver esa página
+  if (isAuthenticated && usuario?.mustChangePassword) {
+    return (
+      <Routes>
+        <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="*" element={<Navigate to="/change-password" replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <Routes>

@@ -1,7 +1,7 @@
 const API_BASE_URL = "http://localhost:9002";
 
 export interface AffiliateData {
-  credencial_number: string;
+  plan_id: number;
   document_number: string;
   document_type: string;
   birth_date: string;
@@ -15,6 +15,14 @@ export interface AffiliateData {
   postal_code?: string;
   country?: string;
   family_group?: FamilyMember[];
+}
+
+export interface Affiliate extends AffiliateData {
+  id: string;
+  credencial_number: string;
+  status: boolean;
+  plan_type?: string;
+  plan_code?: string;
 }
 
 export interface FamilyMember {
@@ -33,6 +41,17 @@ export const api = {
       credentials: "include", //para que se envie la cookie
     });
     if (!response.ok) throw new Error("Login failed");
+    return response.json();
+  },
+
+  changePassword: async (newPassword: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword }),
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error changing password");
     return response.json();
   },
 

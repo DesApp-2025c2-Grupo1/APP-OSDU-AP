@@ -13,7 +13,7 @@ export function Register() {
 
   // Form State
   const [formData, setFormData] = useState({
-    credencial_number: "",
+    plan_id: 1, // Default to BRONCE
     document_number: "",
     document_type: "DNI",
     birth_date: "",
@@ -57,7 +57,7 @@ export function Register() {
     setError(null);
     try {
       await api.registerAffiliate({
-        credencial_number: formData.credencial_number,
+        plan_id: formData.plan_id,
         document_number: formData.document_number,
         document_type: formData.document_type,
         birth_date: formData.birth_date,
@@ -73,8 +73,13 @@ export function Register() {
         family_group: formData.family_members,
       });
       setIsModalOpen(true);
-    } catch (err) {
-      setError("Hubo un error al procesar tu afiliación. Por favor intenta de nuevo.");
+    } catch (err: any) {
+      if (err.message === "Registration failed") {
+        // Intentar extraer mensaje detallado si el error viene de Joi
+        setError("Los datos ingresados son inválidos. Por favor revisa los campos.");
+      } else {
+        setError("Hubo un error al procesar tu afiliación. Por favor intenta de nuevo.");
+      }
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -134,15 +139,17 @@ export function Register() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nº Credencial</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.credencial_number}
-                    onChange={(e) => setFormData({ ...formData, credencial_number: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan de Salud</label>
+                  <select
+                    value={formData.plan_id}
+                    onChange={(e) => setFormData({ ...formData, plan_id: parseInt(e.target.value) })}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
-                    placeholder="Ej: 01-00000001"
-                  />
+                  >
+                    <option value={1}>BRONCE</option>
+                    <option value={2}>PLATA</option>
+                    <option value={3}>ORO</option>
+                    <option value={4}>PLATINO</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>

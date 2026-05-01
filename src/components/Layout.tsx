@@ -81,7 +81,7 @@ export function Layout() {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-10 font-sans">
+    <div className="max-w-7xl mx-auto p-4 md:p-10 font-sans">
       <nav className="flex items-center justify-between mb-8 bg-white p-3 px-6 rounded-2xl shadow-xl shadow-gray-100/50 border border-gray-50 relative">
         <div className="flex items-center gap-4">
           <Link to="/" className="w-10 h-10 bg-unahur rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-unahur/20">U</Link>
