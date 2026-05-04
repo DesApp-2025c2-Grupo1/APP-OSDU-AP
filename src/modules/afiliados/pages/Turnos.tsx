@@ -9,7 +9,7 @@ import { ModalReservaTurno } from "../components/ModalReservaTurno";
 import {
   mockTurnos, mockTurnosDisponibles,
   type Turno, type FiltroTurno, type TurnoDisponible,
-} from "../data/mockData";
+} from "../../../data/mockData";
 
 const ITEMS_POR_PAGINA = 5;
 

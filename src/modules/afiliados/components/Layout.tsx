@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { UserCircle, ChevronDown, LogOut, LayoutDashboard, Shield } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 
 export interface Persona {
   id: string;

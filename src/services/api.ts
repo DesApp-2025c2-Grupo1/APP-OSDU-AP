@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:9002";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:9002";
 
 export interface AffiliateData {
   plan_id: number;
@@ -39,6 +39,17 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
       credentials: "include", //para que se envie la cookie
+    });
+    if (!response.ok) throw new Error("Login failed");
+    return response.json();
+  },
+
+  loginPrestador: async (cuit: string, password: string) => {
+    const response = await fetch(`${API_BASE_URL}/providers/prestadores/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cuit, password }),
+      credentials: "include",
     });
     if (!response.ok) throw new Error("Login failed");
     return response.json();
