@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from "react";
-import { usuariosAPI } from "../services/api";
+import { api } from "../services/api";
 
 export interface UsuarioAuth {
   id?: string;
@@ -8,29 +8,21 @@ export interface UsuarioAuth {
   apellido: string;
   dni: string;
   email?: string;
+  role?: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   usuario: UsuarioAuth | null;
-  login: (dni: string, password: string) => Promise<{ ok: boolean; mensaje?: string }>;
+  login: (email: string, password: string) => Promise<{ ok: boolean; mensaje?: string }>;
   logout: () => void;
+  updateUsuario: (datos: Partial<UsuarioAuth>) => void;
 }
-
-
-const MOCK_USUARIO: UsuarioAuth = {
-  id: "101",
-  nombre: "Octavio",
-  apellido: "Pérez",
-  dni: "12345678",
-};
-const MOCK_PASSWORD = "unahur2026";
-
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Inicializa desde localStorage para que la sesión sobreviva recarga
   const [usuario, setUsuario] = useState<UsuarioAuth | null>(() => {
     try {
       const stored = localStorage.getItem("auth_usuario");
@@ -42,43 +34,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = usuario !== null;
 
-
   const login = useCallback(
-    async (dni: string, password: string): Promise<{ ok: boolean; mensaje?: string }> => {
+    async (email: string, password: string): Promise<{ ok: boolean; mensaje?: string }> => {
       try {
-        const response = await usuariosAPI.login(dni, password);
-        const userData = response.data;
+        const data = await api.login(email, password);
 
-        const usuario: UsuarioAuth = {
-          id_usuario: userData.id_usuario,
-          id: String(userData.id_usuario),
-          nombre: userData.nombre || "Usuario",
-          apellido: userData.apellido || "",
-          dni: userData.dni,
-          email: userData.email
+        // El backend devuelve { message, user }
+        const { user } = data;
+
+        const usuarioModel: UsuarioAuth = {
+          id: String(user.id),
+          nombre: user.email?.split('@')[0] || "Usuario",
+          apellido: "",
+          dni: "",
+          email: user.email,
+          role: user.role,
+          mustChangePassword: user.must_change_password
         };
 
-        setUsuario(usuario);
-        localStorage.setItem("auth_usuario", JSON.stringify(usuario));
+        setUsuario(usuarioModel);
+        localStorage.setItem("auth_usuario", JSON.stringify(usuarioModel));
+
         return { ok: true };
-      } catch (error: any) {
-        const mensaje = error.response?.status === 401
-          ? "DNI o contraseña incorrectos."
-          : "Error en la autenticación. Intenta de nuevo.";
-        return { ok: false, mensaje };
+      } catch (err) {
+        return { ok: false, mensaje: "Email o contraseña incorrectos, o cuenta no activada." };
       }
     },
     []
   );
-
 
   const logout = useCallback(() => {
     setUsuario(null);
     localStorage.removeItem("auth_usuario");
   }, []);
 
+  const updateUsuario = useCallback((datos: Partial<UsuarioAuth>) => {
+    setUsuario(prev => {
+      if (!prev) return null;
+      const nuevo = { ...prev, ...datos };
+      localStorage.setItem("auth_usuario", JSON.stringify(nuevo));
+      return nuevo;
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, usuario, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, usuario, login, logout, updateUsuario }}>
       {children}
     </AuthContext.Provider>
   );

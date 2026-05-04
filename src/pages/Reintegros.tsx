@@ -2,26 +2,22 @@ import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
-import { ModalCargaReintegro } from "../components/ModalCargaReintegro"; 
+import { ModalCargaReintegro } from "../components/ModalCargaReintegro";
 import { mockReintegros, type Reintegro } from "../data/mockData";
-import { Filter, Calendar, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, Plus, ChevronLeft, ChevronRight, FileSearch, CheckCircle2, AlertCircle } from "lucide-react";
 
 export function Reintegros() {
   const { activeProfile } = useOutletContext<{ activeProfile: Persona }>();
-  
+
   const [filtro, setFiltro] = useState<FiltroEstado>("PENDIENTE");
   const [listaReintegros, setListaReintegros] = useState<Reintegro[]>(mockReintegros);
   const [paginaActual, setPaginaActual] = useState(1);
-  const ITEMS_POR_PAGINA = 5;
+  const ITEMS_POR_PAGINA = 6;
 
-  // Modales
   const [reintegroVistaDetalle, setReintegroVistaDetalle] = useState<Reintegro | null>(null);
   const [textoRespuesta, setTextoRespuesta] = useState("");
-  
-  // Modal de Carga / Edición Total
   const [isCargaModalOpen, setIsCargaModalOpen] = useState(false);
   const [reintegroAEditar, setReintegroAEditar] = useState<Reintegro | null>(null);
-
 
   const obtenerDatosFiltrados = () => {
     const delUsuario = listaReintegros.filter(r => r.idIntegrante === activeProfile.id);
@@ -32,11 +28,11 @@ export function Reintegros() {
     return delUsuario.filter(r => {
       if (filtro === "PENDIENTE") return r.estado === "Recibido" || r.estado === "En análisis";
       if (filtro === "OBSERVADA") return r.estado === "Observado";
-      
+
       const fechaDelTramite = new Date(r.fechaEstado + "T00:00:00");
       if (filtro === "RECHAZADA") return r.estado === "Rechazado" && fechaDelTramite >= limiteSemanas;
       if (filtro === "APROBADA") return r.estado === "Aprobado" && fechaDelTramite >= limiteSemanas;
-      
+
       return false;
     });
   };
@@ -47,106 +43,103 @@ export function Reintegros() {
   const datosPaginados = datosFiltrados.slice(indexInicio, indexInicio + ITEMS_POR_PAGINA);
 
   useEffect(() => {
-        setPaginaActual(1);
-    }, [filtro]);
-
-    // Agregado para volver a pág 1 si borro todo lo que hay en otras paginas... 
-    useEffect(() => {
-        const maxPaginas = Math.ceil(datosFiltrados.length / ITEMS_POR_PAGINA);
-        if (paginaActual > maxPaginas && maxPaginas > 0) {
-            setPaginaActual(maxPaginas);
-        }
-    }, [datosFiltrados.length, paginaActual]);
+    setPaginaActual(1);
+  }, [filtro]);
 
   const simularBorrado = (id: string) => {
     setListaReintegros(prev => prev.filter(r => r.id !== id));
   };
 
   const simularRespuestaObservacion = (id: string) => {
-    setListaReintegros(prev => prev.map(r => 
+    setListaReintegros(prev => prev.map(r =>
       r.id === id ? { ...r, estado: "En análisis", fechaEstado: new Date().toISOString().split('T')[0] } : r
     ));
     setReintegroVistaDetalle(null);
     setTextoRespuesta("");
   };
 
-  // Lógica de clic en el estado de la tabla
   const handleClicEstado = (reintegro: Reintegro) => {
     if (reintegro.estado === "Recibido") {
-      // Si está Recibido, abrimos el modal "Gordo" en modo edición
       setReintegroAEditar(reintegro);
       setIsCargaModalOpen(true);
     } else {
-      // Si es otro estado, abrimos el modal "Finito" de solo lectura/respuesta
       setReintegroVistaDetalle(reintegro);
     }
   };
 
-  const abrirModalNuevaCarga = () => {
-    setReintegroAEditar(null); // Nos aseguramos de que esté vacío
-    setIsCargaModalOpen(true);
-  };
-
   return (
-    <div className="animate-in fade-in duration-500 relative">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-          Gestión de <span className="text-unahur font-black">Reintegros</span>
-        </h1>
-        <p className="text-gray-500 text-sm">
-          Historial de reintegros de: <span className="text-unahur font-bold">{activeProfile.nombre} {activeProfile.apellido}</span>
-        </p>
-      </header>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 leading-tight">
+            Gestión de <span className="text-unahur">Reintegros</span>
+          </h1>
+          <p className="text-gray-400 mt-1 font-medium">
+            Historial de trámites de <span className="text-gray-900 font-bold">{activeProfile.nombre}</span>
+          </p>
+        </div>
 
-      <DashboardFiltros filtroActual={filtro} setFiltro={setFiltro} />
-
-      <div className="flex justify-end mb-4">
         <button
-          onClick={abrirModalNuevaCarga}
-          className="bg-unahur hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-md transition-all active:scale-95"
+          onClick={() => { setReintegroAEditar(null); setIsCargaModalOpen(true); }}
+          className="bg-unahur hover:bg-unahur-dark text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-unahur/30 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
         >
-          <Plus size={16} /> Cargar Reintegro
+          <Plus size={20} /> Nueva Solicitud
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-50 flex items-center gap-2 bg-gray-50/30">
-          <Filter size={14} className="text-gray-400" />
-          <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-            Listado: {filtro}S
-          </h2>
+      <div className="bg-white p-2 rounded-[32px] border border-gray-100 shadow-sm">
+        <DashboardFiltros filtroActual={filtro} setFiltro={setFiltro} />
+      </div>
+
+      <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+          <div className="flex items-center gap-3">
+            <div className="bg-unahur/10 p-2 rounded-xl text-unahur">
+              <FileSearch size={18} />
+            </div>
+            <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest">
+              Listado de Solicitudes
+            </h2>
+          </div>
+          <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-unahur border border-unahur/20 shadow-sm shadow-unahur/5">
+            {datosFiltrados.length} TRÁMITES
+          </span>
         </div>
 
-        <div className="overflow-x-auto min-h-[300px]">
+        <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-50 text-[10px] uppercase text-gray-400">
-                <th className="p-4 font-bold">Fecha / Lugar</th>
-                <th className="p-4 font-bold">Médico / Especialidad</th>
-                <th className="p-4 font-bold">Factura / Pago</th>
-                <th className="p-4 font-bold">Estado (Clic para detalle)</th>
+                <th className="px-8 py-5 font-black tracking-widest">Fecha / Lugar</th>
+                <th className="px-8 py-5 font-black tracking-widest">Médico</th>
+                <th className="px-8 py-5 font-black tracking-widest">Monto</th>
+                <th className="px-8 py-5 font-black tracking-widest text-right">Estado</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-50">
               {datosPaginados.length > 0 ? (
                 datosPaginados.map((r) => (
-                  <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="p-4">
-                      <p className="text-sm font-bold text-gray-800">{r.fechaPrestacion}</p>
-                      <p className="text-[10px] text-gray-400">{r.lugarAtencion}</p>
+                  <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-8 py-6">
+                      <p className="text-sm font-black text-gray-900 group-hover:text-unahur transition-colors">{r.fechaPrestacion}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.lugarAtencion}</p>
                     </td>
-                    <td className="p-4">
-                      <p className="text-sm font-bold text-gray-800">{r.medico}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">{r.especialidad}</p>
+                    <td className="px-8 py-6">
+                      <p className="text-sm font-black text-gray-900">{r.medico}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.especialidad}</p>
                     </td>
-                    <td className="p-4">
-                      <p className="text-sm font-semibold text-green-600">${r.factura.valorTotal.toLocaleString()}</p>
-                      <p className="text-[10px] text-gray-400">{r.formaPago}</p>
+                    <td className="px-8 py-6">
+                      <p className="text-sm font-black text-green-600">${r.factura.valorTotal.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.formaPago}</p>
                     </td>
-                    <td className="p-4">
-                      <button 
+                    <td className="px-8 py-6 text-right">
+                      <button
                         onClick={() => handleClicEstado(r)}
-                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-gray-100 text-gray-600 hover:bg-unahur hover:text-white transition-colors cursor-pointer shadow-sm"
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm active:scale-95 ${r.estado === "Aprobado" ? "bg-green-50 text-green-600 hover:bg-green-100" :
+                          r.estado === "Rechazado" ? "bg-red-50 text-red-600 hover:bg-red-100" :
+                            r.estado === "Observado" ? "bg-amber-50 text-amber-600 hover:bg-amber-100" :
+                              "bg-gray-50 text-gray-600 hover:bg-unahur hover:text-white"
+                          }`}
                       >
                         {r.estado}
                       </button>
@@ -155,10 +148,10 @@ export function Reintegros() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="p-10 text-center">
-                    <div className="flex flex-col items-center opacity-30">
-                      <Calendar size={40} className="mb-2" />
-                      <p className="text-sm font-medium">No se encontraron solicitudes</p>
+                  <td colSpan={4} className="p-20 text-center">
+                    <div className="flex flex-col items-center justify-center text-gray-300">
+                      <Calendar size={64} className="mb-4 opacity-20" />
+                      <p className="text-lg font-black uppercase tracking-widest text-gray-300">Sin Solicitudes</p>
                     </div>
                   </td>
                 </tr>
@@ -168,93 +161,130 @@ export function Reintegros() {
         </div>
 
         {totalPaginas > 1 && (
-          <div className="p-4 border-t border-gray-50 flex items-center justify-between bg-gray-50/30">
-            <p className="text-xs text-gray-500 font-medium">
-              Mostrando {indexInicio + 1} a {Math.min(indexInicio + ITEMS_POR_PAGINA, datosFiltrados.length)} de {datosFiltrados.length}
+          <div className="p-6 border-t border-gray-50 flex items-center justify-between bg-gray-50/30">
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+              Página {paginaActual} de {totalPaginas}
             </p>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPaginaActual(p => Math.max(1, p - 1))} disabled={paginaActual === 1} className="p-1.5 rounded-md border border-gray-200 text-gray-500 disabled:opacity-30 hover:bg-white transition-colors"><ChevronLeft size={16} /></button>
-              <span className="text-xs font-bold text-gray-600 px-2">Página {paginaActual} de {totalPaginas}</span>
-              <button onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))} disabled={paginaActual === totalPaginas} className="p-1.5 rounded-md border border-gray-200 text-gray-500 disabled:opacity-30 hover:bg-white transition-colors"><ChevronRight size={16} /></button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                className="p-2 rounded-xl border border-gray-200 text-gray-500 disabled:opacity-30 hover:bg-white hover:border-unahur hover:text-unahur shadow-sm transition-all"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                className="p-2 rounded-xl border border-gray-200 text-gray-500 disabled:opacity-30 hover:bg-white hover:border-unahur hover:text-unahur shadow-sm transition-all"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* =========================================
-          MODAL DE VISTA DETALLE (Solo lectura / Observados)
-          ========================================= */}
       {reintegroVistaDetalle && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in" onClick={() => { setReintegroVistaDetalle(null); setTextoRespuesta(""); }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            
-            <div className="p-5 border-b border-gray-100 bg-gray-50">
-              <h3 className="font-bold text-gray-800">Detalle del Reintegro</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Afiliado: <strong className="text-unahur">{activeProfile.nombre} {activeProfile.apellido}</strong>
-              </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => { setReintegroVistaDetalle(null); setTextoRespuesta(""); }}></div>
+          <div className="relative bg-white max-w-lg w-full rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-unahur font-black uppercase tracking-widest mb-1">Detalle del Trámite</p>
+                <h3 className="text-xl font-black text-gray-900">{reintegroVistaDetalle.medico}</h3>
+              </div>
+              <div className={`p-2 rounded-xl text-xs font-black uppercase ${reintegroVistaDetalle.estado === "Aprobado" ? "bg-green-50 text-green-600" :
+                reintegroVistaDetalle.estado === "Rechazado" ? "bg-red-50 text-red-600" :
+                  "bg-amber-50 text-amber-600"
+                }`}>
+                {reintegroVistaDetalle.estado}
+              </div>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              
+            <div className="p-8 space-y-6 max-h-[50vh] overflow-y-auto">
               {reintegroVistaDetalle.estado === "Observado" && reintegroVistaDetalle.mensajeObservacion && (
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6">
-                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Motivo de observación:</p>
-                  <p className="text-sm text-amber-900">{reintegroVistaDetalle.mensajeObservacion}</p>
+                <div className="p-5 bg-amber-50 border border-amber-100 rounded-2xl flex gap-4">
+                  <div className="bg-amber-100 text-amber-600 p-2 h-fit rounded-xl">
+                    <AlertCircle size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Observación del Auditor</p>
+                    <p className="text-sm text-amber-900 font-medium">{reintegroVistaDetalle.mensajeObservacion}</p>
+                  </div>
                 </div>
               )}
 
-              {/* MODO SOLO LECTURA PARA TODOS LOS ESTADOS (Excepto Recibido, que ya no pasa por acá) */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Médico</label>
-                  <p className="font-medium text-gray-800">{reintegroVistaDetalle.medico}</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Especialidad</p>
+                  <p className="text-sm font-bold text-gray-800">{reintegroVistaDetalle.especialidad}</p>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Especialidad</label>
-                  <p className="font-medium text-gray-800">{reintegroVistaDetalle.especialidad}</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Lugar</p>
+                  <p className="text-sm font-bold text-gray-800">{reintegroVistaDetalle.lugarAtencion}</p>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Monto a reintegrar</label>
-                  <p className="font-medium text-green-600">${reintegroVistaDetalle.factura.valorTotal.toLocaleString()}</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Fecha Prestación</p>
+                  <p className="text-sm font-bold text-gray-800">{reintegroVistaDetalle.fechaPrestacion}</p>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Lugar de atención</label>
-                  <p className="font-medium text-gray-800">{reintegroVistaDetalle.lugarAtencion}</p>
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Monto Solicitado</p>
+                  <p className="text-sm font-black text-green-600">${reintegroVistaDetalle.factura.valorTotal.toLocaleString()}</p>
                 </div>
               </div>
 
               {reintegroVistaDetalle.estado === "Observado" && (
-                <div className="mt-6 border-t border-gray-100 pt-4">
-                  <label className="block text-[10px] font-bold text-unahur uppercase tracking-wider mb-2">Escriba su respuesta</label>
-                  <textarea value={textoRespuesta} onChange={(e) => setTextoRespuesta(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-unahur outline-none min-h-[100px]" placeholder="Escriba aquí..."></textarea>
+                <div className="space-y-3 pt-4 border-t border-gray-50">
+                  <p className="text-[10px] text-unahur font-black uppercase tracking-widest">Responder a Observación</p>
+                  <textarea
+                    value={textoRespuesta}
+                    onChange={(e) => setTextoRespuesta(e.target.value)}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-unahur transition-all min-h-[120px]"
+                    placeholder="Escriba su descargo o adjunte información adicional..."
+                  ></textarea>
                 </div>
               )}
             </div>
 
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <div className="p-8 bg-gray-50/50 flex gap-4">
               {reintegroVistaDetalle.estado === "Observado" ? (
                 <>
-                  <button onClick={() => setReintegroVistaDetalle(null)} className="px-4 py-2 text-gray-500 font-bold hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">Cancelar</button>
-                  <button onClick={() => simularRespuestaObservacion(reintegroVistaDetalle.id)} disabled={textoRespuesta.trim() === ""} className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-lg hover:bg-amber-600 disabled:opacity-50">Enviar Respuesta</button>
+                  <button
+                    onClick={() => { setReintegroVistaDetalle(null); setTextoRespuesta(""); }}
+                    className="w-1/3 py-4 bg-white text-gray-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    onClick={() => simularRespuestaObservacion(reintegroVistaDetalle.id)}
+                    disabled={textoRespuesta.trim() === ""}
+                    className="flex-grow py-4 bg-unahur text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-unahur/30 hover:bg-unahur-dark disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={16} />
+                    Enviar Respuesta
+                  </button>
                 </>
               ) : (
-                <button onClick={() => setReintegroVistaDetalle(null)} className="px-5 py-2 text-gray-500 font-bold rounded-lg hover:text-red-500 hover:bg-red-50 transition-all">Cerrar</button>
+                <button
+                  onClick={() => setReintegroVistaDetalle(null)}
+                  className="w-full py-4 bg-white text-gray-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-gray-100 transition-all"
+                >
+                  Cerrar Detalle
+                </button>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* 🔹 MODAL DE CARGA (Sirve para Crear Y para Editar "Recibidos") */}
-      <ModalCargaReintegro 
-        isOpen={isCargaModalOpen} 
-        onClose={() => setIsCargaModalOpen(false)} 
-        activeProfile={activeProfile} 
+      <ModalCargaReintegro
+        isOpen={isCargaModalOpen}
+        onClose={() => setIsCargaModalOpen(false)}
+        activeProfile={activeProfile}
         reintegroAEditar={reintegroAEditar}
         onDelete={simularBorrado}
       />
-
     </div>
   );
 }
