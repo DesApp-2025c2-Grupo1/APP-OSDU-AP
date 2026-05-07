@@ -15,63 +15,9 @@ function normalizeSlashDate(value) {
   return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
 }
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    title: 'Nueva solicitud recibida',
-    text: 'Se recibió una nueva solicitud de reintegro de Juan Pérez.',
-    time: 'Hoy, 10:30',
-    unread: true,
-    iconClass: 'bg-teal-50 text-teal-600',
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.5L19 9.5V19a2 2 0 01-2 2z" />
-    ),
-  },
-  {
-    id: 2,
-    title: 'Solicitud en análisis',
-    text: 'La solicitud de autorización de María López pasó a estado en análisis.',
-    time: 'Hoy, 09:15',
-    unread: true,
-    iconClass: 'bg-amber-50 text-amber-600',
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    ),
-  },
-  {
-    id: 3,
-    title: 'Solicitud observada',
-    text: 'La solicitud de reintegro de Carlos García fue observada. Requiere tu revisión.',
-    time: 'Ayer, 16:45',
-    unread: true,
-    iconClass: 'bg-orange-50 text-orange-600',
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9h3.4L21 17.5 19.3 20H4.7L3 17.5 10.3 3.9z" />
-    ),
-  },
-  {
-    id: 4,
-    title: 'Solicitud aprobada',
-    text: 'La solicitud de autorización de Ana Torres fue aprobada exitosamente.',
-    time: 'Ayer, 11:20',
-    unread: false,
-    iconClass: 'bg-emerald-50 text-emerald-600',
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    ),
-  },
-  {
-    id: 5,
-    title: 'Solicitud rechazada',
-    text: 'La solicitud de reintegro de Luis Martínez fue rechazada.',
-    time: '05/14/2024',
-    unread: false,
-    iconClass: 'bg-rose-50 text-rose-600',
-    icon: (
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    ),
-  },
-]
+const defaultIcon = (
+  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+)
 
 const PERIOD_OPTIONS = ['Este mes', 'Mes anterior', 'Últimos 3 meses']
 
@@ -133,10 +79,20 @@ function PeriodDropdown() {
 
 function NotificationsBell() {
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState(NOTIFICATIONS)
+  const [notifications, setNotifications] = useState([])
   const [selectedNotification, setSelectedNotification] = useState(null)
   const [showAll, setShowAll] = useState(false)
   const unreadCount = notifications.filter(n => n.unread).length
+
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
+    fetch(`${API_URL}/providers/notificaciones`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setNotifications(data)
+      })
+      .catch(console.error)
+  }, [])
 
   useEffect(() => {
     if (!open) return undefined
@@ -149,9 +105,14 @@ function NotificationsBell() {
 
   function markAllRead() {
     setNotifications(prev => prev.map(item => ({ ...item, unread: false })))
+    // TODO: A backend "mark-all" is usually better, but keeping it superficial for now
   }
 
-  function openNotification(notification) {
+  async function openNotification(notification) {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
+    if (notification.unread) {
+      await fetch(`${API_URL}/providers/notificaciones/${notification.id}/leida`, { method: 'PUT' }).catch(console.error)
+    }
     setNotifications(prev => prev.map(item => item.id === notification.id ? { ...item, unread: false } : item))
     setSelectedNotification({ ...notification, unread: false })
   }
@@ -216,7 +177,7 @@ function NotificationsBell() {
               >
                 <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${notification.iconClass}`}>
                   <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    {notification.icon}
+                    {defaultIcon}
                   </svg>
                 </span>
                 <span className="min-w-0 flex-1">
@@ -258,7 +219,7 @@ function NotificationsBell() {
               <div className="flex items-start gap-3">
                 <span className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${selectedNotification.iconClass}`}>
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    {selectedNotification.icon}
+                    {defaultIcon}
                   </svg>
                 </span>
                 <div>
@@ -336,7 +297,7 @@ function NotificationsBell() {
                 >
                   <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${notification.iconClass}`}>
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      {notification.icon}
+                      {defaultIcon}
                     </svg>
                   </span>
                   <span className="min-w-0 flex-1">

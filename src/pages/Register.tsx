@@ -27,6 +27,8 @@ export function Register() {
     postal_code: "",
     country: "",
     family_members: [] as FamilyMember[],
+    dni_document: null as File | null,
+    payslip_document: null as File | null,
   });
 
   const [newFamilyMember, setNewFamilyMember] = useState<FamilyMember>({
@@ -71,6 +73,8 @@ export function Register() {
         postal_code: formData.postal_code || undefined,
         country: formData.country || undefined,
         family_group: formData.family_members,
+        dni_document: formData.dni_document || undefined,
+        payslip_document: formData.payslip_document || undefined,
       });
       setIsModalOpen(true);
     } catch (err: any) {
@@ -102,6 +106,7 @@ export function Register() {
         <div className="flex items-center justify-center gap-4 mb-8">
           <div className={`h-2 w-16 rounded-full ${step >= 1 ? 'bg-unahur' : 'bg-gray-200'}`}></div>
           <div className={`h-2 w-16 rounded-full ${step >= 2 ? 'bg-unahur' : 'bg-gray-200'}`}></div>
+          <div className={`h-2 w-16 rounded-full ${step >= 3 ? 'bg-unahur' : 'bg-gray-200'}`}></div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -274,7 +279,7 @@ export function Register() {
                 <ChevronRight size={20} />
               </button>
             </div>
-          ) : (
+          ) : step === 2 ? (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="flex items-center gap-3 text-lg font-bold text-gray-800 mb-4">
                 <Users className="text-unahur" size={24} />
@@ -340,7 +345,7 @@ export function Register() {
 
               {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 mt-6">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
@@ -349,9 +354,71 @@ export function Register() {
                   Volver
                 </button>
                 <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="flex-grow flex items-center justify-center gap-2 py-4 bg-unahur text-white rounded-2xl font-bold hover:bg-unahur-dark transition-all transform hover:-translate-y-1"
+                >
+                  Siguiente Paso
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center gap-3 text-lg font-bold text-gray-800 mb-4">
+                <Users className="text-unahur" size={24} />
+                <h3>Documentación <span className="text-sm font-normal text-red-500 ml-2">(Obligatorio)</span></h3>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Documento de Identidad (DNI)
+                  </label>
+                  <input
+                    type="file"
+                    required
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setFormData({ ...formData, dni_document: e.target.files[0] });
+                      }
+                    }}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Recibo de Sueldo / Monotributo
+                  </label>
+                  <input
+                    type="file"
+                    required
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setFormData({ ...formData, payslip_document: e.target.files[0] });
+                      }
+                    }}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="w-1/3 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                >
+                  Volver
+                </button>
+                <button
                   type="submit"
-                  disabled={isLoading}
-                  className="flex-grow py-4 bg-unahur text-white rounded-2xl font-bold hover:bg-unahur-dark shadow-lg shadow-unahur/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
+                  disabled={isLoading || !formData.dni_document || !formData.payslip_document}
+                  className="flex-grow py-4 bg-unahur text-white rounded-2xl font-bold hover:bg-unahur-dark shadow-lg shadow-unahur/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isLoading ? "Procesando..." : (
                     <>

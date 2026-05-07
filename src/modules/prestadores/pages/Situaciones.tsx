@@ -199,98 +199,81 @@ function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', 
 }
 
 const emptyForm = { tipo: '', fechaInicio: '', fechaFin: '', activa: true }
-
-const demoAfiliados = [
-  { id: 1, nombre: 'Juan Suarez', nro: 'AFI-0001' },
-  { id: 2, nombre: 'María Sáez', nro: 'AFI-0002' },
-  { id: 3, nombre: 'Lucía Suarez', nro: 'AFI-0003' },
-  { id: 4, nombre: 'Pedro Suarez', nro: 'AFI-0004' },
-  { id: 5, nombre: 'Romina Suarez', nro: 'AFI-0005' },
-]
-
-const demoSituaciones = {
-  1: [
-    { id: 101, tipo: 'Tratamiento psicológico', fechaInicio: '02/01/2024', fechaFin: '01/06/2024', activa: true },
-    { id: 102, tipo: 'Rehabilitación post-operatoria', fechaInicio: '03/20/2023', fechaFin: '07/10/2023', activa: false },
-  ],
-  2: [
-    { id: 201, tipo: 'Control nutricional', fechaInicio: '04/12/2024', fechaFin: '09/12/2024', activa: true },
-  ],
-  3: [
-    { id: 301, tipo: 'Kinesiología respiratoria', fechaInicio: '01/15/2024', fechaFin: '06/15/2024', activa: true },
-  ],
-  4: [
-    { id: 401, tipo: 'Tratamiento psicológico', fechaInicio: '08/05/2023', fechaFin: '12/05/2023', activa: false },
-  ],
-  5: [
-    { id: 501, tipo: 'Rehabilitación post-operatoria', fechaInicio: '02/10/2024', fechaFin: '08/10/2024', activa: true },
-  ],
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
 export default function Situaciones() {
   const { usuario: prestador, logout } = useAuth()
   const navigate = useNavigate()
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
   const [opcionesSit, setOpcionesSit] = useState([])
-  const [query, setQuery]           = useState('')
-  const [tabs, setTabs]             = useState(demoAfiliados)
-  const [selectedTab, setSelectedTab] = useState(demoAfiliados[0])
-  const [situaciones, setSituaciones] = useState(demoSituaciones)
-  const [modal, setModal]           = useState(null) // null | 'nueva' | 'editar'
-  const [form, setForm]             = useState(emptyForm)
-  const [editingId, setEditingId]   = useState(null)
-  const [editingAfiliado, setEditingAfiliado] = useState(demoAfiliados[0])
+  const [query, setQuery] = useState('')
+  const [tabs, setTabs] = useState([])
+  const [selectedTab, setSelectedTab] = useState(null)
+  const [situaciones, setSituaciones] = useState([])
+  const [modal, setModal] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [editingId, setEditingId] = useState(null)
+  const [editingAfiliado, setEditingAfiliado] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
+  const afiliado = selectedTab ?? tabs[0] ?? null
+
   useEffect(() => {
-    fetch(`${API_URL}/providers/situaciones/tipos`)
+    cargarTipos()
+    if (afiliado) cargarSituacionesAfiliado(afiliado.id)
+  }, [afiliado])
+
+  function cargarTipos() {
+    fetch(`${API_BASE_URL}/providers/situaciones/tipos`)
       .then(r => r.json())
       .then(d => setOpcionesSit(d))
       .catch(e => console.error(e))
-  }, [API_URL])
+  }
 
   function cargarSituacionesAfiliado(afiliadoId) {
-    fetch(`${API_URL}/providers/situaciones/afiliado/${afiliadoId}`)
+    fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}`)
       .then(r => r.json())
-      .then(d => setSituaciones(prev => ({ ...prev, [afiliadoId]: d })))
+      .then(d => setSituaciones(d))
       .catch(e => console.error(e))
   }
 
-  function buscar(q) {
-    const val = q.trim()
-    if (!val) {
-      setTabs(demoAfiliados)
-      setSelectedTab(demoAfiliados[0])
+  async function buscar(q) {
+    if (!q.trim()) {
+      setTabs([])
+      setSelectedTab(null)
       return
     }
-    const lower = val.toLowerCase()
-    const found = demoAfiliados.filter(afiliado =>
-      afiliado.nombre.toLowerCase().includes(lower) ||
-      afiliado.nro.toLowerCase().includes(lower)
-    )
-    setTabs(found)
-    setSelectedTab(found[0] ?? null)
+    try {
+      const res = await fetch(`${API_BASE_URL}/providers/afiliados/search?q=${q.trim()}`)
+      const found = await res.json()
+      if (found.length > 0) {
+        setTabs(found)
+        setSelectedTab(found[0])
+      } else {
+        setTabs([])
+        setSelectedTab(null)
+      }
+    } catch (e) { console.error(e) }
   }
 
   function handleQueryChange(e) {
     const v = e.target.value
     setQuery(v)
-    buscar(v)
+    const timeout = setTimeout(() => buscar(v), 300)
+    return () => clearTimeout(timeout)
   }
 
   function clearSearch() {
     setQuery('')
-    setTabs(demoAfiliados)
-    setSelectedTab(demoAfiliados[0])
+    setTabs([])
+    setSelectedTab(null)
   }
 
   function openNueva() {
-    const afiliado = selectedTab ?? tabs[0] ?? demoAfiliados[0]
+    if (!afiliado) return
     setForm(emptyForm)
     setEditingId(null)
     setEditingAfiliado(afiliado)
-    setSelectedTab(afiliado)
     setModal('nueva')
   }
 
@@ -298,7 +281,6 @@ export default function Situaciones() {
     setForm({ tipo: sit.tipo, fechaInicio: sit.fechaInicio, fechaFin: sit.fechaFin, activa: sit.activa })
     setEditingId(sit.id)
     setEditingAfiliado(afiliado)
-    setSelectedTab(afiliado)
     setModal('editar')
   }
 
@@ -307,56 +289,43 @@ export default function Situaciones() {
     const idAfil = editingAfiliado.id
     try {
       if (modal === 'editar') {
-        fetch(`${API_URL}/providers/situaciones/afiliado/${idAfil}/${editingId}`, {
+        await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${idAfil}/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form)
-        }).catch(e => console.error(e))
+        })
       } else {
-        fetch(`${API_URL}/providers/situaciones/afiliado/${idAfil}`, {
+        await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${idAfil}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form)
-        }).catch(e => console.error(e))
+        })
       }
-      setSituaciones(prev => {
-        const actuales = prev[idAfil] ?? []
-        if (modal === 'editar') {
-          return {
-            ...prev,
-            [idAfil]: actuales.map(sit => sit.id === editingId ? { ...sit, ...form } : sit),
-          }
-        }
-        return {
-          ...prev,
-          [idAfil]: [{ ...form, id: Date.now() }, ...actuales],
-        }
-      })
+      cargarSituacionesAfiliado(idAfil)
       setModal(null)
     } catch (e) { console.error(e) }
   }
 
   async function darDeBaja(sitId, afiliadoId) {
     try {
-      fetch(`${API_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, {
+      await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ activa: false })
-      }).catch(e => console.error(e))
-      setSituaciones(prev => ({
-        ...prev,
-        [afiliadoId]: (prev[afiliadoId] ?? []).map(sit => sit.id === sitId ? { ...sit, activa: false } : sit),
-      }))
+      })
+      cargarSituacionesAfiliado(afiliadoId)
     } catch (e) { console.error(e) }
   }
 
   async function eliminar(sitId, afiliadoId) {
-    // Si tuvieramos DELETE, haríamos un DELETE, por ahora simulémoslo si no hay mock. 
-    // Wait, mock service updateSituacion can't delete right now. So I will just hide it locally for demo.
-    setSituaciones(prev => ({
-      ...prev,
-      [afiliadoId]: (prev[afiliadoId] ?? []).filter(s => s.id !== sitId),
-    }))
+    try {
+      const res = await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setSituaciones(prev => prev.filter(s => s.id !== sitId))
+      }
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   function confirmarEliminar() {

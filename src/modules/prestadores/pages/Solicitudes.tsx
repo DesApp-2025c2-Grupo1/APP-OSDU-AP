@@ -553,19 +553,33 @@ export default function Solicitudes() {
     setMobileTabOpen(false)
   }
 
-  function crearSolicitud(form) {
-    const nueva = {
-      id: Date.now(),
+  async function crearSolicitud(form) {
+    const payload = {
       nro: `SOL-${String(data.length + 1).padStart(4, '0')}`,
       afiliado: form.afiliado || 'Afiliado sin seleccionar',
       tipo: form.tipo || 'Reintegro',
       estado: 'Pendiente',
       fecha: form.fecha,
+      descripcion: form.descripcion || '',
     }
-    setData(prev => [nueva, ...prev])
-    setFiltEstado('Todos')
-    setActiveTab('todas')
-    setCurrentPage(1)
+
+    try {
+      const res = await fetch(`${API_URL}/providers/solicitudes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        const nueva = await res.json()
+        setData(prev => [nueva, ...prev])
+        setFiltEstado('Todos')
+        setActiveTab('todas')
+        setCurrentPage(1)
+      }
+    } catch (error) {
+      console.error(error)
+    }
   }
 
   const hayFiltros = filtEstado !== 'Todos' || filtTipo !== 'Todos' || filtAfil !== 'Todos' || filtFecha || search

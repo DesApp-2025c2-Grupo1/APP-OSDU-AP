@@ -15,6 +15,8 @@ export interface AffiliateData {
   postal_code?: string;
   country?: string;
   family_group?: FamilyMember[];
+  dni_document?: File;
+  payslip_document?: File;
 }
 
 export interface Affiliate extends AffiliateData {
@@ -68,10 +70,22 @@ export const api = {
 
   // Affiliates
   registerAffiliate: async (data: AffiliateData) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      
+      if (key === 'dni_document' || key === 'payslip_document') {
+        formData.append(key, value as File);
+      } else if (key === 'family_group') {
+        formData.append(key, JSON.stringify(value));
+      } else {
+        formData.append(key, String(value));
+      }
+    });
+
     const response = await fetch(`${API_BASE_URL}/affiliates`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: formData,
       credentials: "include",
     });
     if (!response.ok) throw new Error("Registration failed");

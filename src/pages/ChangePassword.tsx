@@ -5,7 +5,7 @@ import { api } from "../services/api";
 import { ShieldAlert, Loader2, CheckCircle, Lock } from "lucide-react";
 
 export function ChangePassword() {
-  const { logout, updateUsuario } = useAuth();
+  const { logout, updateUsuario, usuario } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +35,8 @@ export function ChangePassword() {
       updateUsuario({ mustChangePassword: false });
 
       setTimeout(() => {
-        navigate("/");
+        const dest = usuario?.tipo === "prestador" ? "/prestadores" : "/";
+        navigate(dest);
       }, 2000);
     } catch (err) {
       setError("No se pudo actualizar la contraseña. Intenta de nuevo.");

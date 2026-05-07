@@ -296,6 +296,7 @@ export default function Turnos() {
   const [viewMonth, setViewMonth]   = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState(today)
   const [turnos,       setTurnos]       = useState([])
+  const [diasConTurnos, setDiasConTurnos] = useState([])
   const [loading,      setLoading]      = useState(false)
   const [notaTurno,    setNotaTurno]    = useState(null)
   const [showNuevo,    setShowNuevo]    = useState(false)
@@ -328,6 +329,15 @@ export default function Turnos() {
   useEffect(() => {
     cargarTurnos()
   }, [selectedKey, API_URL])
+
+  useEffect(() => {
+    fetch(`${API_URL}/providers/turnos/mes?year=${viewYear}&month=${viewMonth + 1}`)
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d)) setDiasConTurnos(d)
+      })
+      .catch(console.error)
+  }, [viewYear, viewMonth, API_URL])
 
   async function handleAddNota(turno, texto) {
     try {
@@ -363,7 +373,7 @@ export default function Turnos() {
 
   const isToday    = (d) => d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear()
   const isSelected = (d) => d === selectedDate.getDate() && viewMonth === selectedDate.getMonth() && viewYear === selectedDate.getFullYear()
-  const hasTurnos  = (d) => false // Mock limitation
+  const hasTurnos  = (d) => diasConTurnos.includes(d)
 
   return (
     <>
