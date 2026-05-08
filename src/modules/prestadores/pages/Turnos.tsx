@@ -320,7 +320,7 @@ export default function Turnos() {
 
   function cargarTurnos() {
     setLoading(true)
-    fetch(`${API_URL}/providers/turnos?date=${selectedKey}`)
+    fetch(`${API_URL}/providers/turnos?date=${selectedKey}`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { setTurnos(d); setLoading(false) })
       .catch(e => { console.error(e); setLoading(false) })
@@ -331,7 +331,7 @@ export default function Turnos() {
   }, [selectedKey, API_URL])
 
   useEffect(() => {
-    fetch(`${API_URL}/providers/turnos/mes?year=${viewYear}&month=${viewMonth + 1}`)
+    fetch(`${API_URL}/providers/turnos/mes?year=${viewYear}&month=${viewMonth + 1}`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         if (Array.isArray(d)) setDiasConTurnos(d)
@@ -344,7 +344,8 @@ export default function Turnos() {
       await fetch(`${API_URL}/providers/turnos/${turno.id}/nota`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nota: texto })
+        body: JSON.stringify({ nota: texto }),
+        credentials: 'include'
       })
       cargarTurnos() // Refresh
     } catch (e) { console.error(e) }
@@ -355,7 +356,8 @@ export default function Turnos() {
       await fetch(`${API_URL}/providers/turnos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevo)
+        body: JSON.stringify(nuevo),
+        credentials: 'include'
       })
       cargarTurnos() // Refresh
       setShowNuevo(false)

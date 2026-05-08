@@ -224,14 +224,14 @@ export default function Situaciones() {
   }, [afiliado])
 
   function cargarTipos() {
-    fetch(`${API_BASE_URL}/providers/situaciones/tipos`)
+    fetch(`${API_BASE_URL}/providers/situaciones/tipos`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setOpcionesSit(d))
       .catch(e => console.error(e))
   }
 
   function cargarSituacionesAfiliado(afiliadoId) {
-    fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}`)
+    fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setSituaciones(d))
       .catch(e => console.error(e))
@@ -244,7 +244,7 @@ export default function Situaciones() {
       return
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/providers/afiliados/search?q=${q.trim()}`)
+      const res = await fetch(`${API_BASE_URL}/providers/afiliados/search?q=${q.trim()}`, { credentials: 'include' })
       const found = await res.json()
       if (found.length > 0) {
         setTabs(found)
@@ -292,13 +292,15 @@ export default function Situaciones() {
         await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${idAfil}/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
+          body: JSON.stringify(form),
+          credentials: 'include'
         })
       } else {
         await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${idAfil}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
+          body: JSON.stringify(form),
+          credentials: 'include'
         })
       }
       cargarSituacionesAfiliado(idAfil)
@@ -311,7 +313,8 @@ export default function Situaciones() {
       await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activa: false })
+        body: JSON.stringify({ activa: false }),
+        credentials: 'include'
       })
       cargarSituacionesAfiliado(afiliadoId)
     } catch (e) { console.error(e) }
@@ -319,7 +322,7 @@ export default function Situaciones() {
 
   async function eliminar(sitId, afiliadoId) {
     try {
-      const res = await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         setSituaciones(prev => prev.filter(s => s.id !== sitId))
       }

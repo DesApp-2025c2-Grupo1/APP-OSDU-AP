@@ -391,7 +391,7 @@ export default function Solicitudes() {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
   useEffect(() => {
-    fetch(`${API_URL}/providers/solicitudes`)
+    fetch(`${API_URL}/providers/solicitudes`, { credentials: 'include' })
       .then(res => res.json())
       .then(d => {
         setData(d.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha) })))
@@ -454,7 +454,8 @@ export default function Solicitudes() {
       const res = await fetch(`${API_URL}/providers/solicitudes/${id}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado })
+        body: JSON.stringify({ estado: nuevoEstado }),
+        credentials: 'include'
       })
       if (res.ok) {
         setData(prev => prev.map(s => s.id === id ? { ...s, estado: nuevoEstado } : s))
@@ -567,7 +568,8 @@ export default function Solicitudes() {
       const res = await fetch(`${API_URL}/providers/solicitudes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        credentials: 'include'
       })
 
       if (res.ok) {

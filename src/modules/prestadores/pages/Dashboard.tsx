@@ -86,7 +86,7 @@ function NotificationsBell() {
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
-    fetch(`${API_URL}/providers/notificaciones`)
+    fetch(`${API_URL}/providers/notificaciones`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setNotifications(data)
@@ -111,7 +111,7 @@ function NotificationsBell() {
   async function openNotification(notification) {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
     if (notification.unread) {
-      await fetch(`${API_URL}/providers/notificaciones/${notification.id}/leida`, { method: 'PUT' }).catch(console.error)
+      await fetch(`${API_URL}/providers/notificaciones/${notification.id}/leida`, { method: 'PUT', credentials: 'include' }).catch(console.error)
     }
     setNotifications(prev => prev.map(item => item.id === notification.id ? { ...item, unread: false } : item))
     setSelectedNotification({ ...notification, unread: false })
@@ -326,7 +326,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
-    fetch(`${API_URL}/providers/dashboard/stats`)
+    fetch(`${API_URL}/providers/dashboard/stats`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setData(d))
       .catch(e => console.error(e))

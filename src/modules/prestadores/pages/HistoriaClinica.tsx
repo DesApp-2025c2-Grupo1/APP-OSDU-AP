@@ -58,7 +58,7 @@ export default function HistoriaClinica() {
     const q = query.trim()
     if (!q) return
     try {
-      const res = await fetch(`${API_URL}/providers/afiliados/search?q=${q}`)
+      const res = await fetch(`${API_URL}/providers/afiliados/search?q=${q}`, { credentials: 'include' })
       const found = await res.json()
       setResultado(found.length > 0 ? found[0] : null)
     } catch (e) { console.error(e) }
@@ -66,7 +66,7 @@ export default function HistoriaClinica() {
 
   async function cargarHistoria(id) {
     try {
-      const res = await fetch(`${API_URL}/providers/historia-clinica/afiliado/${id}`)
+      const res = await fetch(`${API_URL}/providers/historia-clinica/afiliado/${id}`, { credentials: 'include' })
       const data = await res.json()
       setHistoriaPorPaciente(prev => ({ ...prev, [id]: data }))
     } catch (e) { console.error(e) }
