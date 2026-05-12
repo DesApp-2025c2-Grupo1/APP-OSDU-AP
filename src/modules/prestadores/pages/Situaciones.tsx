@@ -41,6 +41,49 @@ function ConfirmDeleteModal({ item, onCancel, onConfirm }) {
   )
 }
 
+function FinalizarSituacionModal({ item, onCancel, onConfirm }) {
+  const [motivo, setMotivo] = useState('')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-3 sm:p-0">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-0 sm:mx-4 overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100">
+          <h2 className="text-base font-600 text-slate-800">Dar de baja situación</h2>
+          <p className="text-sm text-slate-500 mt-2">
+            Indicá el motivo para finalizar {item?.tipo ? `"${item.tipo}"` : 'esta situación'}.
+          </p>
+        </div>
+        <div className="px-6 py-4">
+          <label className="block text-xs font-600 text-slate-600 mb-1.5">Motivo</label>
+          <textarea
+            value={motivo}
+            onChange={event => setMotivo(event.target.value)}
+            rows={4}
+            placeholder="Escribí el motivo de la baja..."
+            className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-teal-500"
+          />
+          {!motivo.trim() && <p className="text-xs text-rose-500 mt-1.5">El motivo es obligatorio.</p>}
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50">
+          <button
+            onClick={onCancel}
+            className="px-5 py-2.5 text-sm font-600 text-slate-600 border border-slate-200 rounded-xl hover:bg-white transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(motivo.trim())}
+            disabled={!motivo.trim()}
+            className="px-5 py-2.5 text-sm font-600 text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Dar de baja
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', opciones = [] }) {
   const [errors, setErrors] = useState({})
 
@@ -52,8 +95,7 @@ function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', 
     if (!nextForm.tipo) nextErrors.tipo = 'Seleccioná una situación.'
     if (!nextForm.fechaInicio) nextErrors.fechaInicio = 'Ingresá la fecha de inicio.'
     else if (!inicio) nextErrors.fechaInicio = 'Usá una fecha de inicio válida.'
-    if (!nextForm.fechaFin) nextErrors.fechaFin = 'Ingresá la fecha de fin.'
-    else if (nextForm.fechaFin && !fin) nextErrors.fechaFin = 'Usá una fecha de fin válida.'
+    if (nextForm.fechaFin && !fin) nextErrors.fechaFin = 'Usá una fecha de fin válida.'
     if (inicio && fin && fin < inicio) nextErrors.fechaFin = 'La fecha de fin no puede ser anterior al inicio.'
 
     return nextErrors
@@ -167,6 +209,17 @@ function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', 
           </div>
 
           {/* Toggle activa */}
+          <div>
+            <label className="block text-xs font-600 text-slate-600 mb-1.5">Observación</label>
+            <textarea
+              value={form.observacion}
+              onChange={e => update({ ...form, observacion: e.target.value })}
+              rows={3}
+              placeholder="Observación clínica o administrativa..."
+              className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -198,7 +251,7 @@ function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', 
   )
 }
 
-const emptyForm = { tipo: '', fechaInicio: '', fechaFin: '', activa: true }
+const emptyForm = { tipo: '', fechaInicio: '', fechaFin: '', activa: true, observacion: '' }
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
 export default function Situaciones() {
@@ -215,6 +268,8 @@ export default function Situaciones() {
   const [editingId, setEditingId] = useState(null)
   const [editingAfiliado, setEditingAfiliado] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [finalizarTarget, setFinalizarTarget] = useState(null)
+  const [error, setError] = useState('')
 
   const afiliado = selectedTab ?? tabs[0] ?? null
 
@@ -224,17 +279,21 @@ export default function Situaciones() {
   }, [afiliado])
 
   function cargarTipos() {
-    fetch(`${API_BASE_URL}/providers/situaciones/tipos`, { credentials: 'include' })
+    fetch(`${API_BASE_URL}/prestadores/situaciones/tipos`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => setOpcionesSit(d))
-      .catch(e => console.error(e))
+      .catch(() => setError('No se pudieron cargar los tipos de situación'))
   }
 
   function cargarSituacionesAfiliado(afiliadoId) {
-    fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}`, { credentials: 'include' })
-      .then(r => r.json())
+    fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${afiliadoId}`, { credentials: 'include' })
+      .then(async r => {
+        const json = await r.json()
+        if (!r.ok) throw new Error(json.message || 'No se pudieron cargar las situaciones')
+        return json
+      })
       .then(d => setSituaciones(d))
-      .catch(e => console.error(e))
+      .catch(e => setError(e.message || 'No se pudieron cargar las situaciones'))
   }
 
   async function buscar(q) {
@@ -244,7 +303,7 @@ export default function Situaciones() {
       return
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/providers/afiliados/search?q=${q.trim()}`, { credentials: 'include' })
+      const res = await fetch(`${API_BASE_URL}/prestadores/afiliados/search?q=${q.trim()}`, { credentials: 'include' })
       const found = await res.json()
       if (found.length > 0) {
         setTabs(found)
@@ -253,7 +312,7 @@ export default function Situaciones() {
         setTabs([])
         setSelectedTab(null)
       }
-    } catch (e) { console.error(e) }
+    } catch (e) { setError('No se pudo buscar el afiliado') }
   }
 
   function handleQueryChange(e) {
@@ -278,7 +337,7 @@ export default function Situaciones() {
   }
 
   function openEditar(sit, afiliado) {
-    setForm({ tipo: sit.tipo, fechaInicio: sit.fechaInicio, fechaFin: sit.fechaFin, activa: sit.activa })
+    setForm({ tipo: sit.tipo, fechaInicio: sit.fechaInicio, fechaFin: sit.fechaFin, activa: sit.activa, observacion: sit.observacion || '' })
     setEditingId(sit.id)
     setEditingAfiliado(afiliado)
     setModal('editar')
@@ -289,45 +348,56 @@ export default function Situaciones() {
     const idAfil = editingAfiliado.id
     try {
       if (modal === 'editar') {
-        await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${idAfil}/${editingId}`, {
+        const res = await fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${idAfil}/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
           credentials: 'include'
         })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json.message || 'No se pudo guardar la situación')
       } else {
-        await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${idAfil}`, {
+        const res = await fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${idAfil}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
           credentials: 'include'
         })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json.message || 'No se pudo crear la situación')
       }
       cargarSituacionesAfiliado(idAfil)
       setModal(null)
-    } catch (e) { console.error(e) }
+    } catch (e) { setError(e.message || 'No se pudo guardar la situación') }
   }
 
-  async function darDeBaja(sitId, afiliadoId) {
+  async function darDeBaja(sit, motivo) {
+    if (!sit?.afiliado?.id || !motivo.trim()) return
     try {
-      await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, {
+      const res = await fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${sit.afiliado.id}/${sit.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activa: false }),
+        body: JSON.stringify({ activa: false, motivoFinalizacion: motivo.trim() }),
         credentials: 'include'
       })
-      cargarSituacionesAfiliado(afiliadoId)
-    } catch (e) { console.error(e) }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo finalizar la situación')
+      cargarSituacionesAfiliado(sit.afiliado.id)
+      setFinalizarTarget(null)
+    } catch (e) { setError(e.message || 'No se pudo finalizar la situación') }
   }
 
   async function eliminar(sitId, afiliadoId) {
     try {
-      const res = await fetch(`${API_BASE_URL}/providers/situaciones/afiliado/${afiliadoId}/${sitId}`, { method: 'DELETE', credentials: 'include' })
+      const res = await fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${afiliadoId}/${sitId}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         setSituaciones(prev => prev.filter(s => s.id !== sitId))
+      } else {
+        const json = await res.json().catch(() => ({}))
+        setError(json.message || 'No se pudo eliminar la situación')
       }
     } catch (e) {
-      console.error(e)
+      setError('No se pudo eliminar la situación')
     }
   }
 
@@ -337,9 +407,7 @@ export default function Situaciones() {
     setDeleteTarget(null)
   }
 
-  const sitRows = tabs.flatMap(afiliado =>
-    (situaciones[afiliado.id] ?? []).map(sit => ({ ...sit, afiliado }))
-  )
+  const sitRows = afiliado ? situaciones.map(sit => ({ ...sit, afiliado })) : []
 
   return (
     <main className="flex-1 min-w-0 w-full bg-slate-50 overflow-y-auto pb-24 md:pb-0">
@@ -355,6 +423,11 @@ export default function Situaciones() {
       </header>
 
       <div className="p-4 sm:p-8 space-y-5">
+        {error && (
+          <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-600 text-rose-700">
+            {error}
+          </div>
+        )}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
 
           {/* Search bar inside card */}
@@ -440,7 +513,7 @@ export default function Situaciones() {
                                 Editar
                               </button>
                               <button
-                                onClick={() => darDeBaja(sit.id, sit.afiliado.id)}
+                                onClick={() => setFinalizarTarget(sit)}
                                 className="w-20 text-center text-xs font-500 leading-tight text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-300 px-2.5 py-1 rounded-lg transition-colors"
                               >
                                 Dar de baja
@@ -472,7 +545,7 @@ export default function Situaciones() {
                               Editar
                             </button>
                             <button
-                              onClick={() => darDeBaja(sit.id, sit.afiliado.id)}
+                              onClick={() => setFinalizarTarget(sit)}
                               className="text-xs font-500 text-slate-500 hover:text-rose-600 border border-slate-200 hover:border-rose-300 px-3 py-1.5 rounded-lg transition-colors"
                             >
                               Dar de baja
@@ -516,6 +589,13 @@ export default function Situaciones() {
           item={deleteTarget}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={confirmarEliminar}
+        />
+      )}
+      {finalizarTarget && (
+        <FinalizarSituacionModal
+          item={finalizarTarget}
+          onCancel={() => setFinalizarTarget(null)}
+          onConfirm={motivo => darDeBaja(finalizarTarget, motivo)}
         />
       )}
     </main>

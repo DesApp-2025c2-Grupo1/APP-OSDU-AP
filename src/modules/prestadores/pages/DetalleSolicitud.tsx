@@ -4,67 +4,6 @@ import { useAuth } from '../../../context/AuthContext'
 import { useState } from 'react'
 import HeaderUser from '../components/HeaderUser'
 
-const facturas = [
-  { nombre: 'Factura_consulta_1.pdf', kb: 175 },
-  { nombre: 'Factura_consulta_2.pdf', kb: 192 },
-  { nombre: 'Factura_consulta_3.pdf', kb: 158 },
-]
-
-function FacturasModal({ onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-3 sm:p-0">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-0 sm:mx-4 overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between px-4 sm:px-6 py-5">
-          <h2 className="text-base font-600 text-slate-800">Facturas adjuntas</h2>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-600 px-4 py-2 rounded-xl transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Descargar todo
-          </button>
-        </div>
-
-        {/* File list */}
-        <div className="px-4 sm:px-6 pb-2 space-y-2">
-          {facturas.map((f, i) => (
-            <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-3 border-b border-slate-100 last:border-0">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-500 text-slate-700">{f.nombre}</p>
-                <p className="text-xs text-slate-400">{f.kb} KB</p>
-              </div>
-              <button className="flex items-center gap-1 text-sm font-500 text-teal-600 hover:text-teal-700 transition-colors">
-                Descargar
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 sm:px-6 py-4">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 text-sm font-500 text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 const PASOS = [
   {
     key: 'Recibido',
@@ -130,12 +69,6 @@ const estadoColor = {
   'Rechazada':   'bg-rose-100 text-rose-700 border-rose-200',
 }
 
-const descripciones = {
-  'Reintegro':    'Solicitud de reintegro por gastos de consultas con especialista. Se adjuntan tres facturas detalladas.',
-  'Autorización': 'Solicitud de autorización para práctica médica programada. Se adjunta orden médica y estudios previos.',
-  'Receta':       'Solicitud de cobertura de medicación crónica. Se adjunta receta médica vigente y diagnóstico.',
-}
-
 function pasoActualIdx(estado) {
   const map = {
     'Pendiente':   0,
@@ -145,6 +78,14 @@ function pasoActualIdx(estado) {
     'Rechazada':   4,
   }
   return map[estado] ?? 0
+}
+
+function formatFileSize(size) {
+  const bytes = Number(size)
+  if (!Number.isFinite(bytes) || bytes <= 0) return 'Tamaño no informado'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function StepCircle({ paso, idx, actualIdx }) {
@@ -173,7 +114,15 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
   const { usuario: prestador, logout } = useAuth()
   const navigate = useNavigate()
   const actualIdx = pasoActualIdx(solicitud.estado)
-  const [showFacturas, setShowFacturas] = useState(false)
+  const [accion, setAccion] = useState(null)
+  const [motivo, setMotivo] = useState('')
+
+  function confirmarCambio() {
+    if (!accion) return
+    onCambiarEstado(solicitud.id, accion, motivo.trim())
+    setAccion(null)
+    setMotivo('')
+  }
 
   return (
     <>
@@ -279,17 +228,32 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
                 <div>
                   <p className="text-sm font-600 text-slate-700 mb-1">Descripción:</p>
                   <p className="text-sm text-slate-600 leading-relaxed">
-                    {descripciones[solicitud.tipo]}
+                    {solicitud.descripcion || 'Sin descripción registrada.'}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">Foto 3 ecos acto del 20/95</p>
+                  {solicitud.motivoEstado && (
+                    <p className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                      <span className="font-700 text-slate-700">Motivo del último cambio:</span> {solicitud.motivoEstado}
+                    </p>
+                  )}
+                  {solicitud.adjunto && (
+                    <div className="mt-4 rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-xs font-700 uppercase text-teal-700">Archivo adjunto</p>
+                          <p className="mt-1 truncate text-sm font-700 text-slate-800">{solicitud.adjunto.nombre}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {formatFileSize(solicitud.adjunto.tamanio)}
+                            {solicitud.adjunto.tipo ? ` · ${solicitud.adjunto.tipo}` : ''}
+                          </p>
+                        </div>
+                        <span className="inline-flex w-fit items-center rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-700 text-teal-700">
+                          Cargado
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={() => setShowFacturas(true)}
-                className="text-sm font-500 text-teal-600 hover:text-teal-700 hover:underline transition-colors flex-shrink-0 lg:ml-8 mt-0.5 text-left"
-              >
-                Ver facturas adjuntas
-              </button>
             </div>
 
             <div className="border-t border-slate-100" />
@@ -303,19 +267,19 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
                 Pasar a análisis
               </button>
               <button
-                onClick={() => onCambiarEstado(solicitud.id, 'Observada')}
+                onClick={() => setAccion('Observada')}
                 className="px-5 py-2.5 text-sm font-500 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors"
               >
                 Observar
               </button>
               <button
-                onClick={() => onCambiarEstado(solicitud.id, 'Aprobada')}
+                onClick={() => setAccion('Aprobada')}
                 className="px-5 py-2.5 text-sm font-600 text-white bg-teal-600 border border-teal-600 rounded-xl hover:bg-teal-700 transition-colors"
               >
                 Aprobar
               </button>
               <button
-                onClick={() => onCambiarEstado(solicitud.id, 'Rechazada')}
+                onClick={() => setAccion('Rechazada')}
                 className="px-5 py-2.5 text-sm font-500 text-rose-600 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 transition-colors"
               >
                 Rechazar
@@ -327,7 +291,36 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
       </div>
     </main>
 
-    {showFacturas && <FacturasModal onClose={() => setShowFacturas(false)} />}
+    {accion && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-3">
+        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="text-sm font-700 text-slate-800">Motivo para {accion.toLowerCase()}</h2>
+            <p className="mt-1 text-xs text-slate-400">Este motivo queda registrado en el historial de la solicitud.</p>
+          </div>
+          <div className="px-5 py-4">
+            <textarea
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+              rows={4}
+              placeholder="Escribí el motivo..."
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            {!motivo.trim() && <p className="mt-1.5 text-xs text-rose-500">El motivo es obligatorio.</p>}
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+            <button onClick={() => setAccion(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-600 text-slate-600">Cancelar</button>
+            <button
+              onClick={confirmarCambio}
+              disabled={!motivo.trim()}
+              className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-700 text-white disabled:opacity-50"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </>
   )
 }

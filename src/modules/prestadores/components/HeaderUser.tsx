@@ -2,83 +2,120 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
-import Dropdown from './Dropdown'
+import { api } from '../../../services/api'
 
-const ESPECIALIDADES = [
-  'Médico clínico',
-  'Cardiología',
-  'Dermatología',
-  'Ginecología',
-  'Kinesiología',
-  'Nutrición',
-  'Odontología',
-  'Oftalmología',
-  'Pediatría',
-  'Psicología',
-  'Traumatología',
-]
-
-function getStoredProfile(cuit) {
-  try {
-    return JSON.parse(localStorage.getItem(`prestador-profile:${cuit}`)) ?? null
-  } catch {
-    return null
-  }
+function formatDate(value) {
+  if (!value) return 'Sin registro'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Sin registro'
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-function PerfilModal({ prestador, initialProfile, onClose, onSave }) {
-  const [form, setForm] = useState(() => ({
-    nombre: initialProfile?.nombre ?? prestador?.nombre ?? 'Prestador',
-    cuit: initialProfile?.cuit ?? prestador?.cuit ?? '',
-    email: initialProfile?.email ?? prestador?.email ?? 'hgomez@medicinaunahur.com.ar',
-    telefono: initialProfile?.telefono ?? prestador?.telefono ?? '11 4567 8900',
-    especialidades: initialProfile?.especialidades ?? ['Médico clínico'],
-  }))
-
-  const availableEspecialidades = ESPECIALIDADES.filter(e => !form.especialidades.includes(e))
-  const [selectedEspecialidad, setSelectedEspecialidad] = useState(availableEspecialidades[0] ?? '')
-
-  function update(field, value) {
-    setForm(prev => ({ ...prev, [field]: value }))
+function InfoItem({ label, value, icon, tone = 'slate' }) {
+  const tones = {
+    slate: 'bg-slate-50 text-slate-500 border-slate-100',
+    teal: 'bg-teal-50 text-teal-600 border-teal-100',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-600 border-amber-100',
   }
 
-  function addEspecialidad() {
-    if (!selectedEspecialidad || form.especialidades.includes(selectedEspecialidad)) return
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+      <div className="flex items-start gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${tones[tone] || tones.slate}`}>
+          {icon}
+        </span>
+        <span className="min-w-0">
+          <p className="text-[11px] font-800 uppercase text-slate-400">{label}</p>
+          <p className="mt-1 break-words text-sm font-700 leading-snug text-slate-800">{value || 'Sin datos'}</p>
+        </span>
+      </div>
+    </div>
+  )
+}
 
-    const nextEspecialidades = [...form.especialidades, selectedEspecialidad]
-    const nextAvailable = ESPECIALIDADES.filter(e => !nextEspecialidades.includes(e))
+function Section({ title, children }) {
+  return (
+    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <h3 className="text-sm font-800 text-slate-900">{title}</h3>
+      <div className="mt-3">{children}</div>
+    </section>
+  )
+}
 
-    setForm(prev => ({ ...prev, especialidades: nextEspecialidades }))
-    setSelectedEspecialidad(nextAvailable[0] ?? '')
-  }
+function Icon({ children }) {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      {children}
+    </svg>
+  )
+}
 
-  function removeEspecialidad(especialidad) {
-    setForm(prev => ({
-      ...prev,
-      especialidades: prev.especialidades.filter(e => e !== especialidad),
-    }))
-    if (!selectedEspecialidad) setSelectedEspecialidad(especialidad)
-  }
+function EstadoBadge({ estado }) {
+  const normalized = estado || 'activo'
+  const classes = {
+    activo: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    suspendido: 'bg-amber-50 text-amber-700 border-amber-200',
+    baja: 'bg-rose-50 text-rose-700 border-rose-200',
+  }[normalized] || 'bg-slate-50 text-slate-700 border-slate-200'
 
-  function handleSubmit(e) {
-    e.preventDefault()
-    onSave(form)
-  }
+  return (
+    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-700 capitalize ${classes}`}>
+      {normalized}
+    </span>
+  )
+}
+
+function PerfilModal({ prestador, onClose }) {
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+    setLoading(true)
+    api.getPrestadorProfile()
+      .then(data => {
+        if (!mounted) return
+        setProfile(data)
+        setError('')
+      })
+      .catch(() => {
+        if (mounted) setError('No se pudo cargar la información del perfil.')
+      })
+      .finally(() => {
+        if (mounted) setLoading(false)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const phones = profile?.telefonos?.filter(Boolean) || []
+  const emails = profile?.mails?.filter(Boolean) || []
+  const specialties = profile?.especialidades || []
+  const places = profile?.lugaresAtencion || []
 
   return (
     <div
       onMouseDown={onClose}
       className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6"
     >
-      <form
-        onSubmit={handleSubmit}
+      <div
         onMouseDown={e => e.stopPropagation()}
-        className="w-full max-w-4xl max-h-[92vh] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto"
+        className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
       >
-        <div className="px-4 sm:px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-5 sm:px-6">
           <div>
             <h2 className="text-lg font-700 text-slate-800">Mi perfil</h2>
-            <p className="text-sm text-slate-400 mt-0.5">Información del prestador</p>
+            <p className="text-sm text-slate-400 mt-0.5">Información registrada del prestador</p>
           </div>
           <button
             type="button"
@@ -92,101 +129,154 @@ function PerfilModal({ prestador, initialProfile, onClose, onSave }) {
           </button>
         </div>
 
-        <div className="px-4 sm:px-6 py-5 space-y-5">
-          <h3 className="text-sm font-700 text-slate-800">Datos personales</h3>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <label className="block">
-              <span className="block text-xs font-600 text-slate-600 mb-1.5">Nombre completo</span>
-              <input
-                value={form.nombre}
-                onChange={e => update('nombre', e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-700"
-              />
-            </label>
-
-            <label className="block">
-              <span className="block text-xs font-600 text-slate-600 mb-1.5">CUIT</span>
-              <input
-                value={form.cuit}
-                disabled
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-400"
-              />
-            </label>
-
-            <div>
-              <span className="block text-xs font-600 text-slate-600 mb-1.5">Especialidad</span>
-              <div className="flex gap-2">
-                <Dropdown
-                  value={selectedEspecialidad}
-                  options={availableEspecialidades.length === 0 ? [{ value: '', label: 'Sin opciones' }] : availableEspecialidades}
-                  onChange={setSelectedEspecialidad}
-                  placeholder="Sin opciones"
-                  className="min-w-0 flex-1"
-                  disabled={availableEspecialidades.length === 0}
-                  maxMenuHeight="max-h-56"
-                />
-                <button
-                  type="button"
-                  onClick={addEspecialidad}
-                  disabled={!selectedEspecialidad}
-                  className="px-3 py-2.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  aria-label="Agregar especialidad"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {form.especialidades.map(especialidad => (
-                  <span key={especialidad} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-xs font-600 text-teal-700 border border-teal-100">
-                    {especialidad}
-                    <button
-                      type="button"
-                      onClick={() => removeEspecialidad(especialidad)}
-                      className="text-teal-500 hover:text-teal-700"
-                      aria-label={`Quitar ${especialidad}`}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
+        <div className="max-h-[calc(92vh-5.5rem)] space-y-5 overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6">
+          {loading && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-8 text-center text-sm font-600 text-slate-500">
+              Cargando perfil...
             </div>
+          )}
 
-            <label className="block lg:col-span-2">
-              <span className="block text-xs font-600 text-slate-600 mb-1.5">Email</span>
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => update('email', e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-700"
-              />
-            </label>
+          {!loading && error && (
+            <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm font-600 text-rose-700">
+              {error}
+            </div>
+          )}
 
-            <label className="block">
-              <span className="block text-xs font-600 text-slate-600 mb-1.5">Teléfono</span>
-              <input
-                value={form.telefono}
-                onChange={e => update('telefono', e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-700"
-              />
-            </label>
-          </div>
+          {!loading && !error && profile && (
+            <>
+              <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-lg font-900 text-teal-700">
+                      {(profile.nombreCompleto || prestador?.nombre || 'P')
+                        .split(' ')
+                        .map(part => part[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-900 leading-tight text-slate-900">{profile.nombreCompleto || prestador?.nombre || 'Prestador'}</h3>
+                      <p className="mt-1 text-sm font-600 text-slate-500">{profile.tipoPrestador === 'centro_medico' ? 'Centro médico' : 'Profesional'}</p>
+                    </div>
+                  </div>
+                  <EstadoBadge estado={profile.estado} />
+                </div>
+                <div className="grid border-t border-slate-100 bg-slate-50/70 sm:grid-cols-3">
+                  <div className="border-b border-slate-100 px-5 py-3 sm:border-b-0 sm:border-r">
+                    <p className="text-[11px] font-800 uppercase text-slate-400">CUIT/CUIL</p>
+                    <p className="mt-0.5 text-sm font-800 text-slate-800">{profile.cuitCuil || prestador?.cuit || 'Sin datos'}</p>
+                  </div>
+                  <div className="border-b border-slate-100 px-5 py-3 sm:border-b-0 sm:border-r">
+                    <p className="text-[11px] font-800 uppercase text-slate-400">Email principal</p>
+                    <p className="mt-0.5 truncate text-sm font-800 text-slate-800">{profile.emailPrincipal || profile.cuenta?.email || prestador?.email || 'Sin datos'}</p>
+                  </div>
+                  <div className="px-5 py-3">
+                    <p className="text-[11px] font-800 uppercase text-slate-400">Centro médico</p>
+                    <p className="mt-0.5 truncate text-sm font-800 text-slate-800">{profile.centroMedico?.nombreCompleto || 'No asociado'}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoItem
+                  label="Teléfono principal"
+                  value={profile.telefonoPrincipal}
+                  tone="teal"
+                  icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106a1.125 1.125 0 00-1.173.417l-.97 1.293a1.125 1.125 0 01-1.21.38 12.035 12.035 0 01-7.143-7.143 1.125 1.125 0 01.38-1.21l1.293-.97a1.125 1.125 0 00.417-1.173L6.963 3.102A1.125 1.125 0 005.872 2.25H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></Icon>}
+                />
+                <InfoItem
+                  label="Alta"
+                  value={formatDate(profile.createdAt)}
+                  tone="emerald"
+                  icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 9h16.5M6.75 13.5l2.25 2.25 4.5-4.5M5.25 5.25h13.5A1.5 1.5 0 0120.25 6.75v11.5a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5z" /></Icon>}
+                />
+                <InfoItem
+                  label="Última modificación"
+                  value={formatDate(profile.updatedAt)}
+                  tone="amber"
+                  icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></Icon>}
+                />
+              </section>
+
+              <section className="grid gap-5 lg:grid-cols-2">
+                <Section title="Contacto">
+                  <div className="grid gap-3">
+                    <InfoItem
+                      label="Emails"
+                      value={emails.length ? emails.join(', ') : profile.emailPrincipal}
+                      tone="teal"
+                      icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5A2.25 2.25 0 0119.5 19.5h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0l-7.5-4.615a2.25 2.25 0 01-1.07-1.916V6.75" /></Icon>}
+                    />
+                    <InfoItem
+                      label="Teléfonos"
+                      value={phones.length ? phones.join(', ') : profile.telefonoPrincipal}
+                      tone="teal"
+                      icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5h3A2.25 2.25 0 0115.75 3.75v16.5A2.25 2.25 0 0113.5 22.5h-3a2.25 2.25 0 01-2.25-2.25V3.75A2.25 2.25 0 0110.5 1.5zM12 18.75h.008v.008H12v-.008z" /></Icon>}
+                    />
+                  </div>
+                </Section>
+
+                <Section title="Estado de cuenta">
+                  <div className="grid gap-3">
+                    <InfoItem
+                      label="Usuario"
+                      value={profile.cuenta?.email || profile.emailPrincipal}
+                      icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975M15 9.75a3 3 0 11-6 0 3 3 0 016 0zM2.25 12a9.75 9.75 0 1119.5 0 9.75 9.75 0 01-19.5 0z" /></Icon>}
+                    />
+                    <InfoItem
+                      label="Cambio de contraseña"
+                      value={profile.cuenta?.debeCambiarPassword ? 'Pendiente' : 'No requerido'}
+                      tone={profile.cuenta?.debeCambiarPassword ? 'amber' : 'emerald'}
+                      icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5A2.25 2.25 0 0019.5 19.5v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75A2.25 2.25 0 006.75 21.75z" /></Icon>}
+                    />
+                    <InfoItem
+                      label="Credenciales enviadas"
+                      value={formatDate(profile.cuenta?.credencialesEnviadasAt)}
+                      icon={<Icon><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></Icon>}
+                    />
+                  </div>
+                </Section>
+              </section>
+
+              <Section title="Especialidades">
+                <div className="flex flex-wrap gap-2">
+                  {specialties.length > 0 ? specialties.map(specialty => (
+                    <span key={specialty.id} className="inline-flex items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-3 py-1.5 text-sm font-800 text-teal-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+                      {specialty.nombre}
+                    </span>
+                  )) : (
+                    <p className="text-sm text-slate-500">Sin especialidades registradas.</p>
+                  )}
+                </div>
+              </Section>
+
+              <Section title="Lugares de atención">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {places.length > 0 ? places.map(place => (
+                    <div key={place.idLugar || `${place.calle}-${place.localidad}`} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="flex gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-white text-teal-600">
+                          <Icon><path strokeLinecap="round" strokeLinejoin="round" d="M12 21s6.75-5.03 6.75-11.25a6.75 6.75 0 10-13.5 0C5.25 15.97 12 21 12 21zM12 12a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" /></Icon>
+                        </span>
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-900 text-slate-800">{place.calle || 'Dirección sin informar'}</p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {[place.localidad, place.provincia, place.cp].filter(Boolean).join(', ') || 'Ubicación sin informar'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-sm text-slate-500">Sin lugares de atención registrados.</p>
+                  )}
+                </div>
+              </Section>
+            </>
+          )}
         </div>
-
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex items-center justify-end">
-          <button
-            type="submit"
-            className="px-8 py-2.5 text-sm font-700 text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors shadow-sm"
-          >
-            Guardar cambios
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   )
 }
@@ -274,7 +364,7 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     return ''
   }
 
-  function savePassword() {
+  async function savePassword() {
     const nextErrors = {}
 
     if (!passwords.actual.trim()) nextErrors.actual = 'Primero ingresá tu contraseña actual.'
@@ -311,8 +401,13 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
       setMessage('La nueva contraseña no coincide con la confirmación.')
       return
     }
-    setPasswords({ actual: '', nueva: '', confirmar: '' })
-    setMessage('Contraseña actualizada localmente.')
+    try {
+      await api.changePassword(passwords.nueva)
+      setPasswords({ actual: '', nueva: '', confirmar: '' })
+      setMessage('Contraseña actualizada correctamente.')
+    } catch {
+      setMessage('No se pudo actualizar la contraseña.')
+    }
   }
 
   function savePreferences() {
@@ -466,14 +561,13 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
   const navigate = useNavigate()
   const nombre = prestador?.nombre ?? 'Prestador'
   const cuit = prestador?.cuit ?? ''
-  const [profile, setProfile] = useState(() => getStoredProfile(cuit))
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState(() => getStoredSettings(cuit))
   const ref = useRef(null)
 
-  const displayEspecialidad = profile?.especialidades?.join(', ') ?? 'Médico clínico'
+  const displaySubtitle = cuit ? `CUIT ${cuit}` : 'Prestador'
   const iniciales = nombre
     .split(' ')
     .map(w => w[0])
@@ -488,12 +582,6 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  function saveProfile(nextProfile) {
-    localStorage.setItem(`prestador-profile:${cuit}`, JSON.stringify(nextProfile))
-    setProfile(nextProfile)
-    setProfileOpen(false)
-  }
 
   function saveSettings(nextSettings) {
     localStorage.setItem(`prestador-settings:${cuit}`, JSON.stringify(nextSettings))
@@ -511,7 +599,7 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
         </div>
         <div className="hidden sm:block text-left">
           <p className="text-xs font-600 text-slate-700 leading-tight">{nombre}</p>
-          <p className="text-xs text-slate-400 leading-tight max-w-40 truncate">{displayEspecialidad}</p>
+          <p className="text-xs text-slate-400 leading-tight max-w-40 truncate">{displaySubtitle}</p>
         </div>
         <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -565,9 +653,7 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
       {profileOpen && (
         <PerfilModal
           prestador={prestador}
-          initialProfile={profile}
           onClose={() => setProfileOpen(false)}
-          onSave={saveProfile}
         />
       )}
 

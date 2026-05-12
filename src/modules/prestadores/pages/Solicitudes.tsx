@@ -140,6 +140,7 @@ function FilterSelect({ label, value, options, onChange, getCount, className = '
 }
 
 function NuevaSolicitudModal({ onClose, onCreate }) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
   function formatDateMMDDYYYY(date) {
     const mm = String(date.getMonth() + 1).padStart(2, '0')
     const dd = String(date.getDate()).padStart(2, '0')
@@ -149,14 +150,17 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
 
   const [form, setForm] = useState({
     afiliado: '',
+    afiliadoId: null,
     tipo: '',
     fecha: formatDateMMDDYYYY(new Date()),
     descripcion: '',
     archivo: '',
+    adjunto: null,
   })
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const [afiliados, setAfiliados] = useState([])
 
   const fieldClass = (field) =>
     `w-full text-sm border rounded-xl outline-none transition-colors ${
@@ -171,8 +175,7 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
     const descripcion = nextForm.descripcion.trim()
     const fechaMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(nextForm.fecha.trim())
 
-    if (!afiliado) nextErrors.afiliado = 'Ingresá o buscá un afiliado.'
-    else if (afiliado.length < 3) nextErrors.afiliado = 'El afiliado debe tener al menos 3 caracteres.'
+    if (!nextForm.afiliadoId) nextErrors.afiliado = 'Seleccioná un afiliado de la búsqueda.'
 
     if (!nextForm.tipo) nextErrors.tipo = 'Seleccioná el tipo de solicitud.'
 
@@ -204,6 +207,31 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
     })
   }
 
+  async function buscarAfiliados(value) {
+    update('afiliado', value)
+    update('afiliadoId', null)
+    if (value.trim().length < 2) {
+      setAfiliados([])
+      return
+    }
+    try {
+      const res = await fetch(`${API_URL}/prestadores/afiliados/search?q=${encodeURIComponent(value.trim())}`, { credentials: 'include' })
+      const data = await res.json()
+      setAfiliados(Array.isArray(data) ? data : [])
+    } catch {
+      setAfiliados([])
+    }
+  }
+
+  function seleccionarAfiliado(afiliado) {
+    setAfiliados([])
+    setForm(prev => ({ ...prev, afiliado: afiliado.nombre, afiliadoId: afiliado.id }))
+    setErrors(prev => {
+      const { afiliado: _afiliado, ...rest } = prev
+      return rest
+    })
+  }
+
   function markTouched(key) {
     setTouched(prev => ({ ...prev, [key]: true }))
     validate()
@@ -213,21 +241,29 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
     setSubmitError('')
     setTouched(prev => ({ ...prev, archivo: true }))
     if (!file) {
-      update('archivo', '')
+      setForm(prev => ({ ...prev, archivo: '', adjunto: null }))
       return
     }
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png']
     const validExtensions = /\.(pdf|jpe?g|png)$/i.test(file.name)
     if ((!validTypes.includes(file.type) && !validExtensions) || file.size > 10 * 1024 * 1024) {
       setErrors(prev => ({ ...prev, archivo: 'El archivo debe ser PDF, JPG o PNG y pesar hasta 10MB.' }))
-      update('archivo', '')
+      setForm(prev => ({ ...prev, archivo: '', adjunto: null }))
       return
     }
     setErrors(prev => {
       const { archivo, ...rest } = prev
       return rest
     })
-    update('archivo', file.name)
+    setForm(prev => ({
+      ...prev,
+      archivo: file.name,
+      adjunto: {
+        nombre: file.name,
+        tipo: file.type || 'application/octet-stream',
+        tamanio: file.size,
+      },
+    }))
   }
 
   function crear() {
@@ -285,12 +321,32 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
                   </svg>
                   <input
                     value={form.afiliado}
-                    onChange={e => update('afiliado', e.target.value)}
+                    onChange={e => buscarAfiliados(e.target.value)}
                     onBlur={() => markTouched('afiliado')}
                     placeholder="Buscar afiliado por nombre o nro..."
                     className={`${fieldClass('afiliado')} pl-9 pr-3 py-2.5`}
                   />
                 </div>
+                {afiliados.length > 0 && (
+                  <div className="mt-2 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                    {afiliados.map(afiliado => (
+                      <button
+                        type="button"
+                        key={afiliado.id}
+                        onMouseDown={event => {
+                          event.preventDefault()
+                          seleccionarAfiliado(afiliado)
+                        }}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                      >
+                        <span>
+                          <span className="font-700 text-slate-700">{afiliado.nombre}</span>
+                          <span className="ml-2 text-xs text-slate-400">{afiliado.nro}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {errors.afiliado && touched.afiliado && <p className="text-xs text-rose-500 mt-1.5">{errors.afiliado}</p>}
               </div>
               <div>
@@ -387,18 +443,24 @@ export default function Solicitudes() {
   const [showNueva,   setShowNueva]   = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [mobileTabOpen, setMobileTabOpen] = useState(false)
+  const [error, setError] = useState('')
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
   useEffect(() => {
-    fetch(`${API_URL}/providers/solicitudes`, { credentials: 'include' })
-      .then(res => res.json())
+    setError('')
+    fetch(`${API_URL}/prestadores/solicitudes`, { credentials: 'include' })
+      .then(async res => {
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.message || 'No se pudieron cargar las solicitudes')
+        return json
+      })
       .then(d => {
         setData(d.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha) })))
         setLoading(false)
       })
       .catch(e => {
-        console.error(e)
+        setError(e.message || 'No se pudieron cargar las solicitudes')
         setLoading(false)
       })
   }, [API_URL])
@@ -449,20 +511,22 @@ export default function Solicitudes() {
     return toDateInputValue(value) || value
   }
 
-  async function cambiarEstado(id, nuevoEstado) {
+  async function cambiarEstado(id, nuevoEstado, motivo = '') {
     try {
-      const res = await fetch(`${API_URL}/providers/solicitudes/${id}/estado`, {
+      setError('')
+      const res = await fetch(`${API_URL}/prestadores/solicitudes/${id}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado }),
+        body: JSON.stringify({ estado: nuevoEstado, motivo }),
         credentials: 'include'
       })
-      if (res.ok) {
-        setData(prev => prev.map(s => s.id === id ? { ...s, estado: nuevoEstado } : s))
-        setDetalle(prev => prev ? { ...prev, estado: nuevoEstado } : null)
-      }
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo cambiar el estado')
+      setData(prev => prev.map(s => s.id === id ? { ...s, ...json, fecha: normalizeSlashDate(json.fecha || s.fecha) } : s))
+      setDetalle(prev => prev ? { ...prev, ...json, fecha: normalizeSlashDate(json.fecha || prev.fecha) } : null)
     } catch (error) {
-      console.error(error)
+      setError(error.message || 'No se pudo cambiar el estado')
+      if (detalle) window.alert(error.message || 'No se pudo cambiar el estado')
     }
   }
 
@@ -556,31 +620,29 @@ export default function Solicitudes() {
 
   async function crearSolicitud(form) {
     const payload = {
-      nro: `SOL-${String(data.length + 1).padStart(4, '0')}`,
-      afiliado: form.afiliado || 'Afiliado sin seleccionar',
+      afiliadoId: form.afiliadoId,
       tipo: form.tipo || 'Reintegro',
-      estado: 'Pendiente',
       fecha: form.fecha,
       descripcion: form.descripcion || '',
+      adjunto: form.adjunto,
     }
 
     try {
-      const res = await fetch(`${API_URL}/providers/solicitudes`, {
+      const res = await fetch(`${API_URL}/prestadores/solicitudes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         credentials: 'include'
       })
 
-      if (res.ok) {
-        const nueva = await res.json()
-        setData(prev => [nueva, ...prev])
-        setFiltEstado('Todos')
-        setActiveTab('todas')
-        setCurrentPage(1)
-      }
+      const nueva = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(nueva.message || 'No se pudo crear la solicitud')
+      setData(prev => [{ ...nueva, fecha: normalizeSlashDate(nueva.fecha) }, ...prev])
+      setFiltEstado('Todos')
+      setActiveTab('todas')
+      setCurrentPage(1)
     } catch (error) {
-      console.error(error)
+      setError(error.message || 'No se pudo crear la solicitud')
     }
   }
 
@@ -622,6 +684,11 @@ export default function Solicitudes() {
         <div className="p-8 text-center text-slate-500">Cargando solicitudes...</div>
       ) : (
       <div className="p-4 sm:p-8">
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-600 text-rose-700">
+            {error}
+          </div>
+        )}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
 
           {/* Tabs row */}

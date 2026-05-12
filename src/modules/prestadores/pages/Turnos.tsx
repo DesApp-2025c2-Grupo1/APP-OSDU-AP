@@ -13,8 +13,48 @@ const HORAS_30 = Array.from({ length: 48 }, (_, i) => {
   return `${String(h).padStart(2,'0')}:${m}`
 })
 
+function MotivoTurnoModal({ turno, estado, onClose, onConfirm }) {
+  const [motivo, setMotivo] = useState('')
+  const label = estado === 'ausente' ? 'marcar ausente' : 'cancelar'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-3">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="text-sm font-700 text-slate-800">Motivo para {label} turno</h2>
+          <p className="mt-1 text-xs text-slate-400">{turno?.nombre} · {turno?.hora}</p>
+        </div>
+        <div className="px-5 py-4">
+          <textarea
+            value={motivo}
+            onChange={e => setMotivo(e.target.value)}
+            rows={4}
+            placeholder="Escribí el motivo..."
+            className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+          />
+          {!motivo.trim() && <p className="mt-1.5 text-xs text-rose-500">El motivo es obligatorio.</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
+          <button onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-600 text-slate-600">
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(motivo.trim())}
+            disabled={!motivo.trim()}
+            className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-700 text-white disabled:opacity-50"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
   const [afiliado, setAfiliado] = useState('')
+  const [afiliadoId, setAfiliadoId] = useState(null)
+  const [afiliados, setAfiliados] = useState([])
   const [fecha,    setFecha]    = useState(fechaDefault)
   const [horaIni,  setHoraIni]  = useState('09:00')
   const [horaFin,  setHoraFin]  = useState('09:30')
@@ -23,6 +63,7 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
   const [errors, setErrors]     = useState({})
   const [touched, setTouched]   = useState({})
   const [submitError, setSubmitError] = useState('')
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
   const fieldClass = (field) =>
     `text-sm border rounded-xl outline-none transition-colors ${
@@ -48,8 +89,7 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
 
   function validate() {
     const nextErrors = {}
-    if (!afiliado.trim()) nextErrors.afiliado = 'Ingresá o buscá un afiliado.'
-    else if (afiliado.trim().length < 3) nextErrors.afiliado = 'El afiliado debe tener al menos 3 caracteres.'
+    if (!afiliadoId) nextErrors.afiliado = 'Seleccioná un afiliado de la búsqueda.'
     if (!isValidDate(fecha)) nextErrors.fecha = 'Ingresá una fecha válida con formato MM/DD/AAAA.'
     if (toMinutes(horaFin) <= toMinutes(horaIni)) nextErrors.hora = 'La hora de fin debe ser posterior a la de inicio.'
     if (!motivo.trim()) nextErrors.motivo = 'Ingresá el motivo del turno.'
@@ -70,8 +110,35 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
       setSubmitError('Revisá los campos marcados antes de guardar el turno.')
       return
     }
-    onGuardar({ afiliado, fecha, horaIni, horaFin, motivo, notas })
+    onGuardar({ afiliadoId, afiliado, fecha, horaIni, horaFin, motivo, notas })
     onClose()
+  }
+
+  async function buscarAfiliados(value) {
+    setSubmitError('')
+    setAfiliado(value)
+    setAfiliadoId(null)
+    if (value.trim().length < 2) {
+      setAfiliados([])
+      return
+    }
+    try {
+      const res = await fetch(`${API_URL}/prestadores/afiliados/search?q=${encodeURIComponent(value.trim())}`, { credentials: 'include' })
+      const data = await res.json()
+      setAfiliados(Array.isArray(data) ? data : [])
+    } catch {
+      setAfiliados([])
+    }
+  }
+
+  function seleccionarAfiliado(item) {
+    setAfiliado(item.nombre)
+    setAfiliadoId(item.id)
+    setAfiliados([])
+    setErrors(prev => {
+      const { afiliado: _afiliado, ...rest } = prev
+      return rest
+    })
   }
 
   return (
@@ -105,11 +172,29 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
                 type="text"
                 placeholder="Buscar afiliado por número, nombre o DNI"
                 value={afiliado}
-                onChange={e => { setSubmitError(''); setAfiliado(e.target.value) }}
+                onChange={e => buscarAfiliados(e.target.value)}
                 onBlur={() => markTouched('afiliado')}
                 className={`w-full pl-9 pr-4 py-2.5 text-slate-700 placeholder:text-slate-300 ${fieldClass('afiliado')}`}
               />
             </div>
+            {afiliados.length > 0 && (
+              <div className="mt-2 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                {afiliados.map(item => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onMouseDown={event => {
+                      event.preventDefault()
+                      seleccionarAfiliado(item)
+                    }}
+                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                  >
+                    <span className="font-700 text-slate-700">{item.nombre}</span>
+                    <span className="text-xs text-slate-400">{item.nro}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {errors.afiliado && touched.afiliado && <p className="text-xs text-rose-500 mt-1.5">{errors.afiliado}</p>}
           </div>
 
@@ -291,7 +376,7 @@ export default function Turnos() {
   const navigate = useNavigate()
   const location = useLocation()
   const { openNuevo } = (location.state as any) ?? {}
-  const today = new Date(2026, 3, 20)
+  const today = new Date()
   const [viewYear, setViewYear]     = useState(today.getFullYear())
   const [viewMonth, setViewMonth]   = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState(today)
@@ -300,6 +385,8 @@ export default function Turnos() {
   const [loading,      setLoading]      = useState(false)
   const [notaTurno,    setNotaTurno]    = useState(null)
   const [showNuevo,    setShowNuevo]    = useState(false)
+  const [error, setError] = useState('')
+  const [estadoTurno, setEstadoTurno] = useState(null)
 
   useEffect(() => {
     if (openNuevo) setShowNuevo(true)
@@ -320,10 +407,15 @@ export default function Turnos() {
 
   function cargarTurnos() {
     setLoading(true)
-    fetch(`${API_URL}/providers/turnos?date=${selectedKey}`, { credentials: 'include' })
-      .then(r => r.json())
+    setError('')
+    fetch(`${API_URL}/prestadores/turnos?date=${selectedKey}`, { credentials: 'include' })
+      .then(async r => {
+        const json = await r.json()
+        if (!r.ok) throw new Error(json.message || 'No se pudieron cargar los turnos')
+        return json
+      })
       .then(d => { setTurnos(d); setLoading(false) })
-      .catch(e => { console.error(e); setLoading(false) })
+      .catch(e => { setError(e.message || 'No se pudieron cargar los turnos'); setLoading(false) })
   }
 
   useEffect(() => {
@@ -331,37 +423,62 @@ export default function Turnos() {
   }, [selectedKey, API_URL])
 
   useEffect(() => {
-    fetch(`${API_URL}/providers/turnos/mes?year=${viewYear}&month=${viewMonth + 1}`, { credentials: 'include' })
-      .then(r => r.json())
+    fetch(`${API_URL}/prestadores/turnos/mes?year=${viewYear}&month=${viewMonth + 1}`, { credentials: 'include' })
+      .then(async r => {
+        const json = await r.json()
+        if (!r.ok) throw new Error(json.message || 'No se pudieron cargar los días con turnos')
+        return json
+      })
       .then(d => {
         if (Array.isArray(d)) setDiasConTurnos(d)
       })
-      .catch(console.error)
+      .catch(e => setError(e.message || 'No se pudieron cargar los días con turnos'))
   }, [viewYear, viewMonth, API_URL])
 
   async function handleAddNota(turno, texto) {
     try {
-      await fetch(`${API_URL}/providers/turnos/${turno.id}/nota`, {
+      await fetch(`${API_URL}/prestadores/turnos/${turno.id}/nota`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nota: texto }),
         credentials: 'include'
       })
-      cargarTurnos() // Refresh
-    } catch (e) { console.error(e) }
+      cargarTurnos()
+    } catch (e) { setError('No se pudo guardar la nota') }
   }
 
   async function handleGuardarTurno(nuevo) {
     try {
-      await fetch(`${API_URL}/providers/turnos`, {
+      setError('')
+      const res = await fetch(`${API_URL}/prestadores/turnos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nuevo),
         credentials: 'include'
       })
-      cargarTurnos() // Refresh
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo crear el turno')
+      cargarTurnos()
       setShowNuevo(false)
-    } catch (e) { console.error(e) }
+    } catch (e) { setError(e.message || 'No se pudo crear el turno') }
+  }
+
+  async function cambiarEstadoTurno(turno, estado, motivo = '') {
+    const nota = estado === 'atendido' ? (turno.nota || 'Atención realizada') : undefined
+    try {
+      setError('')
+      const res = await fetch(`${API_URL}/prestadores/turnos/${turno.id}/estado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado, motivo, nota }),
+        credentials: 'include'
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo actualizar el turno')
+      cargarTurnos()
+    } catch (e) {
+      setError(e.message || 'No se pudo actualizar el turno')
+    }
   }
 
   function prevMonth() {
@@ -405,6 +522,11 @@ export default function Turnos() {
       </header>
 
       <div className="p-4 sm:p-8">
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-600 text-rose-700">
+            {error}
+          </div>
+        )}
         <div className="flex flex-col xl:flex-row gap-6 items-stretch xl:items-start">
           {/* Calendar */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 w-full xl:w-80 flex-shrink-0">
@@ -483,6 +605,28 @@ export default function Turnos() {
                     >
                       {turno.nota ? 'Ver / Editar nota' : 'Añadir nota'}
                     </button>
+                    {turno.estado !== 'atendido' && turno.estado !== 'cancelado' && (
+                      <>
+                        <button
+                          onClick={() => cambiarEstadoTurno(turno, 'atendido')}
+                          className="text-xs font-500 text-emerald-700 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors flex-shrink-0"
+                        >
+                          Marcar atendido
+                        </button>
+                        <button
+                          onClick={() => setEstadoTurno({ turno, estado: 'ausente' })}
+                          className="text-xs font-500 text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 transition-colors flex-shrink-0"
+                        >
+                          Ausente
+                        </button>
+                        <button
+                          onClick={() => setEstadoTurno({ turno, estado: 'cancelado' })}
+                          className="text-xs font-500 text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors flex-shrink-0"
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -506,6 +650,17 @@ export default function Turnos() {
         fechaDefault={formatDateMMDDYYYY(selectedDate)}
         onClose={() => setShowNuevo(false)}
         onGuardar={handleGuardarTurno}
+      />
+    )}
+    {estadoTurno && (
+      <MotivoTurnoModal
+        turno={estadoTurno.turno}
+        estado={estadoTurno.estado}
+        onClose={() => setEstadoTurno(null)}
+        onConfirm={(motivo) => {
+          cambiarEstadoTurno(estadoTurno.turno, estadoTurno.estado, motivo)
+          setEstadoTurno(null)
+        }}
       />
     )}
   </>

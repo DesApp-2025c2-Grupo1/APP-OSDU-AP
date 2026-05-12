@@ -29,8 +29,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const USE_MOCK = import.meta.env.VITE_USER_MOCK === "true";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioAuth | null>(() => {
     try {
@@ -80,22 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginPrestador = useCallback(
     async (cuit: string, _password: string): Promise<{ ok: boolean; mensaje?: string }> => {
-      if (USE_MOCK) {
-        const mockUser: UsuarioAuth = {
-          id: "mock-prestador-1",
-          nombre: "Juan",
-          apellido: "Pérez",
-          dni: "12345678",
-          cuit,
-          role: "prestador",
-          tipo: "prestador",
-          mustChangePassword: false,
-        };
-        setUsuario(mockUser);
-        localStorage.setItem("auth_usuario", JSON.stringify(mockUser));
-        return { ok: true };
-      }
-
       try {
         const data = await api.loginPrestador(cuit, _password);
         const { user } = data;

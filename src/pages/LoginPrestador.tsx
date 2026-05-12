@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const USE_MOCK = import.meta.env.VITE_USER_MOCK === "true";
-
 export function LoginPrestador() {
   const navigate = useNavigate();
   const { isAuthenticated, usuario, loginPrestador } = useAuth();
@@ -40,16 +38,6 @@ export function LoginPrestador() {
     setError("");
 
     try {
-      if (USE_MOCK) {
-        // Modo mock: simular login exitoso
-        const resultado = await loginPrestador(cuit, password);
-        if (!resultado.ok) {
-          // En mock igual llamamos al context para que setee el usuario
-        }
-        navigate("/prestadores", { replace: true });
-        return;
-      }
-
       const resultado = await loginPrestador(cuit, password);
 
       if (resultado.ok) {
@@ -110,13 +98,6 @@ export function LoginPrestador() {
 
           <h1 className="text-2xl font-bold text-slate-800 mb-1">Iniciar sesión</h1>
           <p className="text-sm text-slate-400 mb-8">Ingresá para acceder a tu cuenta</p>
-
-          {/* Badge de modo mock */}
-          {USE_MOCK && (
-            <div className="mb-4 px-4 py-2 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-600 font-medium">
-              ⚙️ Modo prueba (sin backend)
-            </div>
-          )}
 
           {/* Mensaje de error */}
           {error && (

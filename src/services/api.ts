@@ -1,5 +1,37 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:9002";
 
+export interface PrestadorProfile {
+  cuitCuil: string;
+  nombreCompleto: string;
+  tipoPrestador: string;
+  estado: string;
+  telefonos?: string[];
+  mails?: string[];
+  emailPrincipal?: string;
+  telefonoPrincipal?: string;
+  especialidades?: Array<{ id: number; nombre: string }>;
+  lugaresAtencion?: Array<{
+    idLugar?: number;
+    calle?: string;
+    localidad?: string;
+    provincia?: string;
+    cp?: string;
+  }>;
+  centroMedico?: {
+    cuitCuil?: string;
+    nombreCompleto?: string;
+  } | null;
+  cuenta?: {
+    email?: string;
+    rol?: string;
+    debeCambiarPassword?: boolean;
+    credencialesEnviadasAt?: string | null;
+    passwordReseteadaAt?: string | null;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface AffiliateData {
   plan_id: number;
   document_number: string;
@@ -47,7 +79,7 @@ export const api = {
   },
 
   loginPrestador: async (cuit: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/providers/prestadores/login`, {
+    const response = await fetch(`${API_BASE_URL}/prestadores/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cuit, password }),
@@ -65,6 +97,14 @@ export const api = {
       credentials: "include",
     });
     if (!response.ok) throw new Error("Error changing password");
+    return response.json();
+  },
+
+  getPrestadorProfile: async (): Promise<PrestadorProfile> => {
+    const response = await fetch(`${API_BASE_URL}/prestadores/profile`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error fetching provider profile");
     return response.json();
   },
 

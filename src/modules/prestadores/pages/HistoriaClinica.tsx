@@ -53,23 +53,53 @@ export default function HistoriaClinica() {
   const [subTab,       setSubTab]       = useState('todas')
   const [popupEntrada, setPopupEntrada] = useState(null)
   const [historiaPorPaciente, setHistoriaPorPaciente] = useState({})
+  const [error, setError] = useState('')
+  const [nuevaNota, setNuevaNota] = useState('')
 
   async function buscar() {
     const q = query.trim()
     if (!q) return
     try {
-      const res = await fetch(`${API_URL}/providers/afiliados/search?q=${q}`, { credentials: 'include' })
+      setError('')
+      const res = await fetch(`${API_URL}/prestadores/afiliados/search?q=${q}`, { credentials: 'include' })
       const found = await res.json()
       setResultado(found.length > 0 ? found[0] : null)
-    } catch (e) { console.error(e) }
+    } catch (e) { setError('No se pudo buscar el afiliado') }
   }
 
   async function cargarHistoria(id) {
     try {
-      const res = await fetch(`${API_URL}/providers/historia-clinica/afiliado/${id}`, { credentials: 'include' })
+      const res = await fetch(`${API_URL}/prestadores/historia-clinica/afiliado/${id}`, { credentials: 'include' })
       const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'No se pudo cargar la historia clínica')
       setHistoriaPorPaciente(prev => ({ ...prev, [id]: data }))
-    } catch (e) { console.error(e) }
+    } catch (e) { setError(e.message || 'No se pudo cargar la historia clínica') }
+  }
+
+  async function agregarEvolucion() {
+    if (!selectedTab || !nuevaNota.trim()) {
+      setError('Seleccioná un afiliado e ingresá una evolución.')
+      return
+    }
+    try {
+      setError('')
+      const res = await fetch(`${API_URL}/prestadores/historia-clinica/afiliado/${selectedTab.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nota: nuevaNota.trim(), modalidad: 'Consulta' }),
+        credentials: 'include'
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo guardar la evolución')
+      setHistoriaPorPaciente(prev => ({
+        ...prev,
+        [selectedTab.id]: [json, ...(prev[selectedTab.id] || [])]
+      }))
+      setNuevaNota('')
+      setSubTab('mis')
+    } catch (e) {
+      setError(e.message || 'No se pudo guardar la evolución')
+    }
   }
 
   function verHistoria(afiliado) {
@@ -100,6 +130,11 @@ export default function HistoriaClinica() {
       </header>
 
       <div className="p-4 sm:p-8 flex flex-col lg:flex-row gap-6 items-stretch lg:items-start">
+        {error && (
+          <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-600 text-rose-700 shadow-lg">
+            {error}
+          </div>
+        )}
 
         {/* Left panel — search */}
         <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
@@ -227,6 +262,24 @@ export default function HistoriaClinica() {
 
               {/* Timeline */}
               <div className="px-4 sm:px-6 py-4 space-y-6">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <label className="block text-xs font-700 text-slate-600 mb-2">Agregar evolución</label>
+                  <textarea
+                    value={nuevaNota}
+                    onChange={e => setNuevaNota(e.target.value)}
+                    rows={3}
+                    placeholder="Escribí una evolución para este afiliado..."
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={agregarEvolucion}
+                      className="rounded-xl bg-teal-600 px-4 py-2 text-xs font-700 text-white hover:bg-teal-700"
+                    >
+                      Guardar evolución
+                    </button>
+                  </div>
+                </div>
                 {histFiltrada.length === 0 ? (
                   <p className="text-sm text-slate-400 text-center py-10">Sin entradas en esta categoría.</p>
                 ) : (
