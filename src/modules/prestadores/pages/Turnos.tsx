@@ -371,6 +371,19 @@ function formatDateMMDDYYYY(date) {
   return `${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')}/${date.getFullYear()}`
 }
 
+async function readJsonResponse(response, fallbackMessage) {
+  const contentType = response.headers.get('content-type') || ''
+  const payload = contentType.includes('application/json')
+    ? await response.json().catch(() => ({}))
+    : {}
+
+  if (!response.ok) {
+    throw new Error(payload.message || payload.error || fallbackMessage)
+  }
+
+  return payload
+}
+
 export default function Turnos() {
   const { usuario: prestador, logout } = useAuth()
   const navigate = useNavigate()
@@ -409,11 +422,7 @@ export default function Turnos() {
     setLoading(true)
     setError('')
     fetch(`${API_URL}/prestadores/turnos?date=${selectedKey}`, { credentials: 'include' })
-      .then(async r => {
-        const json = await r.json()
-        if (!r.ok) throw new Error(json.message || 'No se pudieron cargar los turnos')
-        return json
-      })
+      .then(r => readJsonResponse(r, 'No se pudieron cargar los turnos'))
       .then(d => { setTurnos(d); setLoading(false) })
       .catch(e => { setError(e.message || 'No se pudieron cargar los turnos'); setLoading(false) })
   }
@@ -423,17 +432,8 @@ export default function Turnos() {
   }, [selectedKey, API_URL])
 
   useEffect(() => {
-    fetch(`${API_URL}/prestadores/turnos/mes?year=${viewYear}&month=${viewMonth + 1}`, { credentials: 'include' })
-      .then(async r => {
-        const json = await r.json()
-        if (!r.ok) throw new Error(json.message || 'No se pudieron cargar los días con turnos')
-        return json
-      })
-      .then(d => {
-        if (Array.isArray(d)) setDiasConTurnos(d)
-      })
-      .catch(e => setError(e.message || 'No se pudieron cargar los días con turnos'))
-  }, [viewYear, viewMonth, API_URL])
+    setDiasConTurnos([])
+  }, [viewYear, viewMonth])
 
   async function handleAddNota(turno, texto) {
     try {

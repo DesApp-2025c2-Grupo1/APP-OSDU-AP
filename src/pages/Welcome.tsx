@@ -40,6 +40,29 @@ const SERVICIOS_RAPIDOS = [
   },
 ];
 
+const SERVICIOS_PRESTADORES = [
+  {
+    icon: SERVICIOS_RAPIDOS[0].icon,
+    titulo: "Gestionar Turnos",
+    descripcion: "Consultá y administrá tu agenda diaria",
+  },
+  {
+    icon: SERVICIOS_RAPIDOS[1].icon,
+    titulo: "Solicitudes",
+    descripcion: "Respondé trámites y derivaciones pendientes",
+  },
+  {
+    icon: SERVICIOS_RAPIDOS[2].icon,
+    titulo: "Situaciones",
+    descripcion: "Registrá el seguimiento terapéutico",
+  },
+  {
+    icon: SERVICIOS_RAPIDOS[3].icon,
+    titulo: "Historia Clínica",
+    descripcion: "Accedé al historial de tus pacientes",
+  },
+];
+
 const ACCESOS_RAPIDOS = [
   {
     icon: (
@@ -85,13 +108,33 @@ export function Welcome() {
   const navigate = useNavigate();
   const [sitioAbierto, setSitioAbierto] = useState(false);
   const [sitioActual, setSitioActual] = useState<SitioTipo>("afiliados");
+  const esPrestadores = sitioActual === "prestadores";
+
+  const loginPath = esPrestadores ? "/login/prestador" : "/login/afiliado";
+  const portalLabel = esPrestadores ? "Portal Oficial de Prestadores" : "Portal Oficial de Afiliados";
+  const heroTitle = esPrestadores ? (
+    <>
+      Tu gestión,<br />
+      <span className="text-unahur">más</span> simple<br />
+      y segura.
+    </>
+  ) : (
+    <>
+      Tu salud,<br />
+      <span className="text-unahur">nuestra</span> prioridad<br />
+      más alta.
+    </>
+  );
+  const heroDescription = esPrestadores
+    ? "Accedé al portal de prestadores para gestionar turnos, solicitudes, situaciones terapéuticas e historias clínicas desde un solo lugar."
+    : "Gestioná tus turnos, recetas, reintegros y autorizaciones desde la comodidad de tu hogar. La obra social de la comunidad UNAHUR.";
+  const primaryCta = esPrestadores ? "Ingresar como Prestador" : "Iniciar Sesión";
+  const secondaryCta = esPrestadores ? "Ir a Afiliados" : "Quiero Afiliarme";
+  const serviciosMostrados = esPrestadores ? SERVICIOS_PRESTADORES : SERVICIOS_RAPIDOS;
 
   const handleSitioSelect = (tipo: SitioTipo) => {
     setSitioActual(tipo);
     setSitioAbierto(false);
-    if (tipo === "prestadores") {
-      navigate("/login/prestador");
-    }
   };
 
   return (
@@ -108,12 +151,18 @@ export function Welcome() {
 
           {/* Logo */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-9 h-9 bg-unahur rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-white font-black text-lg leading-none">U</span>
-            </div>
+            {esPrestadores ? (
+              <img src="/logo.png" alt="OSDU" className="h-12 w-16 object-contain" />
+            ) : (
+              <div className="w-9 h-9 bg-unahur rounded-xl flex items-center justify-center shadow-sm">
+                <span className="text-white font-black text-lg leading-none">U</span>
+              </div>
+            )}
             <div>
-              <p className="text-sm font-black text-slate-900 leading-none">MediUnahur</p>
-              <p className="text-[10px] text-slate-400 leading-none mt-0.5">Obra Social UNAHUR</p>
+              <p className="text-sm font-black text-slate-900 leading-none">{esPrestadores ? "OSDU" : "MediUnahur"}</p>
+              <p className="text-[10px] text-slate-400 leading-none mt-0.5">
+                {esPrestadores ? "Obra Social de Universitarios" : "Obra Social UNAHUR"}
+              </p>
             </div>
           </div>
 
@@ -168,16 +217,16 @@ export function Welcome() {
             </div>
 
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate(loginPath)}
               className="text-sm font-semibold text-white bg-unahur hover:bg-green-700 px-5 py-2 rounded-xl transition-colors shadow-sm"
             >
               Ingresar
             </button>
             <button
-              onClick={() => navigate("/register")}
+              onClick={() => esPrestadores ? setSitioActual("afiliados") : navigate("/register")}
               className="hidden sm:block text-sm font-semibold text-unahur border border-unahur/30 hover:bg-green-50 px-5 py-2 rounded-xl transition-colors"
             >
-              Afiliarme
+              {esPrestadores ? "Ver afiliados" : "Afiliarme"}
             </button>
           </div>
         </div>
@@ -198,36 +247,34 @@ export function Welcome() {
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Portal Oficial de Afiliados
+                {portalLabel}
               </div>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 leading-tight mb-6">
-                Tu salud,<br />
-                <span className="text-unahur">nuestra</span> prioridad<br />
-                más alta.
+                {heroTitle}
               </h1>
               <p className="text-lg text-slate-500 leading-relaxed mb-10 max-w-xl mx-auto lg:mx-0">
-                Gestioná tus turnos, recetas, reintegros y autorizaciones desde la comodidad de tu hogar. La obra social de la comunidad UNAHUR.
+                {heroDescription}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <button
-                  onClick={() => navigate("/login/afiliado")}
+                  onClick={() => navigate(loginPath)}
                   className="flex items-center justify-center gap-2 px-8 py-4 bg-unahur text-white rounded-2xl font-bold text-base shadow-lg shadow-unahur/25 hover:bg-green-700 active:scale-[0.98] transition-all"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
-                  Iniciar Sesión
+                  {primaryCta}
                 </button>
                 <button
-                  onClick={() => navigate("/register")}
+                  onClick={() => esPrestadores ? setSitioActual("afiliados") : navigate("/register")}
                   className="flex items-center justify-center gap-2 px-8 py-4 bg-white text-slate-800 border-2 border-slate-200 rounded-2xl font-bold text-base hover:border-unahur/30 hover:bg-green-50 active:scale-[0.98] transition-all"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                   </svg>
-                  Quiero Afiliarme
+                  {secondaryCta}
                 </button>
               </div>
             </div>
@@ -235,10 +282,10 @@ export function Welcome() {
             {/* Grid de servicios */}
             <div className="flex-1 w-full max-w-md lg:max-w-none">
               <div className="grid grid-cols-2 gap-4">
-                {SERVICIOS_RAPIDOS.map((s, i) => (
+                {serviciosMostrados.map((s, i) => (
                   <div
                     key={i}
-                    className={`bg-white rounded-3xl p-5 border border-slate-100 shadow-sm hover:shadow-md hover:border-unahur/20 transition-all cursor-default ${i === 1 ? "translate-y-4" : ""}`}
+                    className="bg-white rounded-3xl p-5 min-h-40 border border-slate-100 shadow-sm hover:shadow-md hover:border-unahur/20 transition-all cursor-default"
                   >
                     <div className="w-12 h-12 bg-unahur/10 rounded-2xl flex items-center justify-center text-unahur mb-4">
                       {s.icon}
@@ -279,10 +326,16 @@ export function Welcome() {
       <footer className="bg-slate-900 py-6">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-unahur rounded-lg flex items-center justify-center">
-              <span className="text-white font-black text-sm">U</span>
-            </div>
-            <span className="text-slate-400 text-xs font-medium">MediUnahur · Obra Social UNAHUR</span>
+            {esPrestadores ? (
+              <img src="/logo.png" alt="OSDU" className="h-9 w-12 object-contain" />
+            ) : (
+              <div className="w-7 h-7 bg-unahur rounded-lg flex items-center justify-center">
+                <span className="text-white font-black text-sm">U</span>
+              </div>
+            )}
+            <span className="text-slate-400 text-xs font-medium">
+              {esPrestadores ? "OSDU · Obra Social de Universitarios" : "MediUnahur · Obra Social UNAHUR"}
+            </span>
           </div>
           <p className="text-slate-600 text-xs">
             © 2026 Universidad Nacional de Hurlingham · Todos los derechos reservados
