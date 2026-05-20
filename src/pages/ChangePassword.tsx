@@ -2,23 +2,46 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
-import { ShieldAlert, Loader2, CheckCircle, Lock } from "lucide-react";
+import { ShieldAlert, Loader2, CheckCircle, Lock, Eye, EyeOff } from "lucide-react";
+
+const getPasswordChecks = (password: string) => [
+  {
+    label: "Mínimo 8 caracteres",
+    valid: password.length >= 8,
+  },
+  {
+    label: "Incluye al menos una letra",
+    valid: /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(password),
+  },
+  {
+    label: "Incluye al menos un número",
+    valid: /\d/.test(password),
+  },
+  {
+    label: "No contiene espacios",
+    valid: password.length > 0 && !/\s/.test(password),
+  },
+];
 
 export function ChangePassword() {
   const { logout, updateUsuario, usuario } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
+  const passwordChecks = getPasswordChecks(newPassword);
+  const isPasswordValid = passwordChecks.every((check) => check.valid);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (newPassword.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    if (!isPasswordValid) {
+      setError("La contraseña debe tener al menos 8 caracteres, incluir letras y números, y no contener espacios.");
       return;
     }
 
@@ -32,14 +55,14 @@ export function ChangePassword() {
       await api.changePassword(newPassword);
       setIsSuccess(true);
 
-      updateUsuario({ mustChangePassword: false });
+      updateUsuario({ debeCambiarPassword: false });
 
       setTimeout(() => {
         const dest = usuario?.tipo === "prestador" ? "/prestadores" : "/";
         navigate(dest);
       }, 2000);
     } catch (err) {
-      setError("No se pudo actualizar la contraseña. Intenta de nuevo.");
+      setError(err instanceof Error ? err.message : "No se pudo actualizar la contraseña. Intenta de nuevo.");
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -86,26 +109,65 @@ export function ChangePassword() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Nueva Contraseña</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
-                  placeholder="Mínimo 6 caracteres"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 pr-12 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
+                    placeholder="Mínimo 8 caracteres"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((value) => !value)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                    aria-label={showNewPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-2 rounded-2xl bg-gray-50 p-3">
+                  {passwordChecks.map((check) => (
+                    <div
+                      key={check.label}
+                      className={`flex items-center gap-2 text-xs font-bold transition-colors ${
+                        check.valid ? "text-emerald-600" : "text-red-500"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] ${
+                          check.valid ? "bg-emerald-100" : "bg-red-100"
+                        }`}
+                      >
+                        {check.valid ? "✓" : "×"}
+                      </span>
+                      {check.label}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Confirmar Contraseña</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
-                  placeholder="Repite tu contraseña"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 pr-12 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
+                    placeholder="Repite tu contraseña"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                    aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               {error && (

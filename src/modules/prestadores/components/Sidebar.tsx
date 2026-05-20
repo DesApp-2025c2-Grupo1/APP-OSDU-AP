@@ -76,17 +76,17 @@ export default function Sidebar() {
     >
       <div className="hidden md:flex items-center justify-between px-4 py-5 border-b border-slate-100">
         {!collapsed && (
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="mediunahur logo" className="w-9 h-9 object-contain flex-shrink-0" />
+          <div className="flex items-center gap-3 min-w-0">
+            <img src="/logo.png" alt="OSDU" className="w-16 h-16 object-contain flex-shrink-0" />
             <div>
-              <p className="text-sm font-700 text-slate-800 leading-tight">MediUnahur</p>
+              <p className="text-base font-800 text-emerald-700 leading-tight">OSDU</p>
               <p className="text-xs text-slate-400 leading-tight">Prestadores</p>
             </div>
           </div>
         )}
         {collapsed && (
           <div className="flex items-center justify-center mx-auto">
-            <img src="/logo.png" alt="mediunahur logo" className="w-8 h-8 object-contain" />
+            <img src="/logo.png" alt="OSDU" className="w-12 h-12 object-contain" />
           </div>
         )}
         <button

@@ -6,13 +6,13 @@ export function AdminAffiliates() {
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<{ status?: boolean }>({});
+  const [filter, setFilter] = useState<{ activo?: boolean }>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchAffiliates = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getAffiliates(filter.status);
+      const data = await api.getAffiliates(filter.activo);
       setAffiliates(data);
     } catch (err) {
       setError("No se pudieron cargar los afiliados.");
@@ -55,19 +55,19 @@ export function AdminAffiliates() {
         <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
           <button
             onClick={() => setFilter({})}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${!filter.hasOwnProperty('status') ? 'bg-unahur text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${!filter.hasOwnProperty('activo') ? 'bg-unahur text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
           >
             Todos
           </button>
           <button
-            onClick={() => setFilter({ status: true })}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filter.status === true ? 'bg-unahur text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            onClick={() => setFilter({ activo: true })}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filter.activo === true ? 'bg-unahur text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
           >
             Activos
           </button>
           <button
-            onClick={() => setFilter({ status: false })}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filter.status === false ? 'bg-unahur text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            onClick={() => setFilter({ activo: false })}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${filter.activo === false ? 'bg-unahur text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
           >
             Pendientes
           </button>
@@ -105,31 +105,31 @@ export function AdminAffiliates() {
               {affiliates.map((affiliate) => (
                 <tr key={affiliate.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-6">
-                    <p className="font-bold text-gray-900">{affiliate.first_name + " " + affiliate.last_name || "Sin Nombre"}</p>
+                    <p className="font-bold text-gray-900">{`${affiliate.nombre || ""} ${affiliate.apellido || ""}`.trim() || "Sin Nombre"}</p>
                     <p className="text-sm text-gray-400">{affiliate.email || "Sin Email"}</p>
                   </td>
                   <td className="px-6 py-6">
-                    <p className="text-sm font-bold text-unahur">{affiliate.credencial_number}</p>
-                    <p className="text-xs font-medium text-gray-400">{affiliate.plan_type || "Sin Plan"}</p>
+                    <p className="text-sm font-bold text-unahur">{affiliate.credencial}</p>
+                    <p className="text-xs font-medium text-gray-400">{affiliate.plan?.nombre || "Sin Plan"}</p>
                   </td>
                   <td className="px-6 py-6">
-                    <p className="text-sm font-semibold text-gray-600">{affiliate.document_type + " " + affiliate.document_number}</p>
+                    <p className="text-sm font-semibold text-gray-600">{affiliate.tipoDocumento + " " + affiliate.nroDocumento}</p>
                   </td>
                   <td className="px-6 py-6">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${affiliate.status ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
-                      {affiliate.status ? 'Activo' : 'Pendiente'}
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${affiliate.activo ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
+                      {affiliate.activo ? 'Activo' : 'Pendiente'}
                     </span>
                   </td>
                   <td className="px-6 py-6 text-right">
                     <button
-                      onClick={() => handleToggleStatus(affiliate.id, affiliate.status)}
+                      onClick={() => handleToggleStatus(affiliate.id, affiliate.activo)}
                       disabled={processingId === affiliate.id}
-                      className={`p-3 rounded-2xl transition-all active:scale-95 ${affiliate.status ? 'bg-orange-50 text-orange-500 hover:bg-orange-100' : 'bg-unahur/10 text-unahur hover:bg-unahur/20'} ${processingId === affiliate.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      title={affiliate.status ? "Desactivar" : "Activar"}
+                      className={`p-3 rounded-2xl transition-all active:scale-95 ${affiliate.activo ? 'bg-orange-50 text-orange-500 hover:bg-orange-100' : 'bg-unahur/10 text-unahur hover:bg-unahur/20'} ${processingId === affiliate.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={affiliate.activo ? "Desactivar" : "Activar"}
                     >
                       {processingId === affiliate.id ? (
                         <Loader2 className="animate-spin" size={20} />
-                      ) : affiliate.status ? (
+                      ) : affiliate.activo ? (
                         <UserX size={20} />
                       ) : (
                         <UserCheck size={20} />

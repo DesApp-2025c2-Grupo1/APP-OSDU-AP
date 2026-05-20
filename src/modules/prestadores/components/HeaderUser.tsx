@@ -17,6 +17,45 @@ function formatDate(value) {
   })
 }
 
+function getPasswordChecks(password) {
+  return [
+    {
+      label: 'Mínimo 8 caracteres',
+      valid: password.length >= 8,
+    },
+    {
+      label: 'Incluye al menos una letra',
+      valid: /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(password),
+    },
+    {
+      label: 'Incluye al menos un número',
+      valid: /\d/.test(password),
+    },
+    {
+      label: 'No contiene espacios',
+      valid: password.length > 0 && !/\s/.test(password),
+    },
+  ]
+}
+
+function PasswordChecklist({ password }) {
+  return (
+    <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl bg-slate-50 p-3">
+      {getPasswordChecks(password).map(check => (
+        <div
+          key={check.label}
+          className={`flex items-center gap-2 text-xs font-700 transition-colors ${check.valid ? 'text-emerald-600' : 'text-rose-500'}`}
+        >
+          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] ${check.valid ? 'bg-emerald-100' : 'bg-rose-100'}`}>
+            {check.valid ? '✓' : '×'}
+          </span>
+          {check.label}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function InfoItem({ label, value, icon, tone = 'slate' }) {
   const tones = {
     slate: 'bg-slate-50 text-slate-500 border-slate-100',
@@ -359,8 +398,9 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
   }
 
   function validateNewPassword(value) {
-    if (value.length < 8) return 'La nueva contraseña debe tener al menos 8 caracteres.'
-    if (!/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(value) || !/\d/.test(value)) return 'La nueva contraseña debe combinar letras y números.'
+    if (!getPasswordChecks(value).every(check => check.valid)) {
+      return 'La nueva contraseña debe tener al menos 8 caracteres, incluir letras y números, y no contener espacios.'
+    }
     return ''
   }
 
@@ -473,7 +513,7 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
                   onChange={updatePassword}
                   onToggleVisible={togglePasswordVisibility}
                 />
-                <span className="block text-xs text-slate-400 mt-1.5">Mínimo 8 caracteres, con letras y números.</span>
+                <PasswordChecklist password={passwords.nueva} />
                 {passwordErrors.nueva && <span className="block text-xs text-rose-500 mt-1.5">{passwordErrors.nueva}</span>}
               </label>
               <label className="block">

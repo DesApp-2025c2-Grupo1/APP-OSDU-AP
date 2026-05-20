@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { api } from "../services/api";
 
 export interface UsuarioAuth {
@@ -11,11 +11,12 @@ export interface UsuarioAuth {
   cuit?: string;
   role?: string;
   tipo: "afiliado" | "prestador";
-  mustChangePassword?: boolean;
+  debeCambiarPassword?: boolean;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isCheckingSession: boolean;
   usuario: UsuarioAuth | null;
   login: (
     email: string,
@@ -38,8 +39,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   });
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const isAuthenticated = usuario !== null;
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getSession()
+      .then((data) => {
+        if (!isMounted) return;
+        const { user } = data;
+        
+        // Ignorar si la sesión activa es de un administrador
+        if (user.role !== "AFILIADO" && user.role !== "PRESTADOR") {
+          throw new Error("Sesión no permitida en este portal");
+        }
+
+        const tipo = user.role === "PRESTADOR" ? "prestador" : "afiliado";
+        const usuarioModel: UsuarioAuth = {
+          id: String(user.id),
+          nombre: user.nombre || user.email?.split("@")[0] || (tipo === "prestador" ? "Prestador" : "Usuario"),
+          apellido: user.apellido || "",
+          dni: user.dni || "",
+          email: user.email,
+          cuit: user.cuit || "",
+          role: user.role,
+          tipo,
+          debeCambiarPassword: user.debeCambiarPassword,
+        };
+        setUsuario(usuarioModel);
+        localStorage.setItem("auth_usuario", JSON.stringify(usuarioModel));
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setUsuario(null);
+        localStorage.removeItem("auth_usuario");
+      })
+      .finally(() => {
+        if (isMounted) setIsCheckingSession(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const login = useCallback(
     async (
@@ -51,6 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await api.login(email, password);
         const { user } = data;
 
+        // Validar que el rol sea compatible con este portal
+        if (user.role !== "AFILIADO") {
+          throw new Error("Acceso denegado: solo afiliados pueden ingresar.");
+        }
+
         const usuarioModel: UsuarioAuth = {
           id: String(user.id),
           nombre: user.nombre || user.email?.split("@")[0] || "Usuario",
@@ -60,16 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           cuit: user.cuit || "",
           role: user.role,
           tipo,
-          mustChangePassword: user.must_change_password,
+          debeCambiarPassword: user.debeCambiarPassword,
         };
 
         setUsuario(usuarioModel);
         localStorage.setItem("auth_usuario", JSON.stringify(usuarioModel));
         return { ok: true };
-      } catch {
+      } catch (error: any) {
         return {
           ok: false,
-          mensaje: `Email o contraseña incorrectos, o no autorizado como ${tipo}.`,
+          mensaje: error.message || `Email o contraseña incorrectos, o no autorizado como ${tipo}.`,
         };
       }
     },
@@ -91,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           cuit: user.cuit,
           role: user.role,
           tipo: "prestador",
-          mustChangePassword: user.must_change_password,
+          debeCambiarPassword: user.debeCambiarPassword,
         };
 
         setUsuario(usuarioModel);
@@ -108,6 +156,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    api.logout().catch(() => {
+      // Ignorar errores para asegurar que la sesión local se limpie igual
+    });
     setUsuario(null);
     localStorage.removeItem("auth_usuario");
   }, []);
@@ -122,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, usuario, login, loginPrestador, logout, updateUsuario }}>
+    <AuthContext.Provider value={{ isAuthenticated, isCheckingSession, usuario, login, loginPrestador, logout, updateUsuario }}>
       {children}
     </AuthContext.Provider>
   );

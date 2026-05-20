@@ -1,5 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:9002";
 
+// Wrapper local de fetch para inyectar los roles válidos para este portal en los headers
+const customFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const headers = new Headers(init?.headers);
+  headers.set("X-Session-Allowed-Roles", "AFILIADO,PRESTADOR");
+  return window.fetch(input, {
+    ...init,
+    headers,
+  });
+};
+const fetch = customFetch;
+
+
 export interface PrestadorProfile {
   cuitCuil: string;
   nombreCompleto: string;
@@ -33,36 +45,35 @@ export interface PrestadorProfile {
 }
 
 export interface AffiliateData {
-  plan_id: number;
-  document_number: string;
-  document_type: string;
-  birth_date: string;
-  first_name: string;
-  last_name: string;
+  idPlan: number;
+  nroDocumento: string;
+  tipoDocumento: string;
+  fechaNacimiento: string;
+  nombre: string;
+  apellido: string;
   email: string;
-  phone: string;
-  address?: string;
-  city?: string;
-  province?: string;
-  postal_code?: string;
-  country?: string;
-  family_group?: FamilyMember[];
+  telefono: string;
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
+  codigoPostal?: string;
+  pais?: string;
+  grupoFamiliar?: FamilyMember[];
   dni_document?: File;
   payslip_document?: File;
 }
 
 export interface Affiliate extends AffiliateData {
   id: string;
-  credencial_number: string;
-  status: boolean;
-  plan_type?: string;
-  plan_code?: string;
+  credencial: string;
+  activo: boolean;
+  plan?: { nombre?: string };
 }
 
 export interface FamilyMember {
-  full_name: string;
-  relationship: string;
-  document_number: string;
+  nombreCompleto: string;
+  parentesco: string;
+  nroDocumento: string;
 }
 
 export interface TurnoAPI {
@@ -70,7 +81,7 @@ export interface TurnoAPI {
   fecha: string;
   horaIni: string;
   horaFin: string;
-  status: string;
+  estado: string;
   motivo: string | null;
   nota: string | null;
   motivoCancelacion: string | null;
@@ -255,14 +266,34 @@ export const api = {
     return response.json();
   },
 
+  logout: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Logout failed");
+    return response.json();
+  },
+
+  getSession: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("No active session");
+    return response.json();
+  },
+
   changePassword: async (newPassword: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newPassword }),
+      body: JSON.stringify({ nuevaPassword: newPassword }),
       credentials: "include",
     });
-    if (!response.ok) throw new Error("Error changing password");
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message ?? "Error changing password");
+    }
     return response.json();
   },
 
@@ -282,7 +313,7 @@ export const api = {
       
       if (key === 'dni_document' || key === 'payslip_document') {
         formData.append(key, value as File);
-      } else if (key === 'family_group') {
+      } else if (key === 'grupoFamiliar') {
         formData.append(key, JSON.stringify(value));
       } else {
         formData.append(key, String(value));
@@ -294,13 +325,16 @@ export const api = {
       body: formData,
       credentials: "include",
     });
-    if (!response.ok) throw new Error("Registration failed");
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message ?? "Registration failed");
+    }
     return response.json();
   },
 
-  getAffiliates: async (status?: boolean) => {
+  getAffiliates: async (activo?: boolean) => {
     const url = new URL(`${API_BASE_URL}/affiliates`);
-    if (status !== undefined) url.searchParams.append("status", status.toString());
+    if (activo !== undefined) url.searchParams.append("activo", activo.toString());
 
     const response = await fetch(url.toString(), {
       credentials: "include",
