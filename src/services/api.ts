@@ -99,6 +99,72 @@ export interface SlotDisponible {
   horaFin: string;
 }
 
+export interface ReintegroAPI {
+  id: number;
+  nro: string;
+  fechaPrestacion: string;
+  medico: string;
+  especialidad: string;
+  lugarAtencion: string;
+  factura: { cuit: string; valorTotal: number };
+  formaPago: string;
+  cbu: string | null;
+  observaciones: string;
+  estado: string;
+  fechaEstado: string;
+  mensajeObservacion: string | null;
+}
+
+export interface SubmitReintegroBody {
+  fechaPrestacion: string;
+  medico: string;
+  especialidad: string;
+  lugarAtencion: string;
+  facturaCuit: string;
+  facturaValor: number;
+  formaPago: string;
+  cbu?: string;
+  observaciones?: string;
+}
+
+export const reintegrosApi = {
+  getMisReintegros: async (): Promise<ReintegroAPI[]> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/reintegros`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error al obtener los reintegros");
+    return response.json();
+  },
+
+  submitReintegro: async (body: SubmitReintegroBody): Promise<ReintegroAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/reintegros`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar el reintegro");
+    }
+    return response.json();
+  },
+
+  responderObservacion: async (id: string | number, respuesta: string): Promise<ReintegroAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/reintegros/${id}/respuesta`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respuesta }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar la respuesta");
+    }
+    return response.json();
+  },
+};
+
 export const turnosApi = {
   getMisTurnos: async (): Promise<TurnoAPI[]> => {
     const response = await fetch(`${API_BASE_URL}/affiliates/turnos`, {

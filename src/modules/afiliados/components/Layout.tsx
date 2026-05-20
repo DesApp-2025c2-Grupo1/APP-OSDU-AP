@@ -62,12 +62,7 @@ export function Layout() {
     rol: "Titular",
   });
 
-  const [grupoFamiliar] = useState<Persona[]>([
-    { id: "102", nombre: "Rocío", apellido: "González", fechaNacimiento: "1992-03-20", rol: "Conyuge" },
-    { id: "103", nombre: "Lucas", apellido: "Pérez", fechaNacimiento: "2018-07-10", rol: "Hijo" },
-    { id: "104", nombre: "Mía", apellido: "Pérez", fechaNacimiento: "2020-02-15", rol: "Hijo" },
-    { id: "105", nombre: "Santi", apellido: "Pérez", fechaNacimiento: "2002-11-20", rol: "Hijo" },
-  ]);
+  const grupoFamiliar: Persona[] = [];
 
   const integrantesVisibles = obtenerIntegrantesVisibles(userLogueado, grupoFamiliar);
   const [activeProfile, setActiveProfile] = useState<Persona>(userLogueado);
