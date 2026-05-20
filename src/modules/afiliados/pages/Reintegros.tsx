@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaReintegro } from "../components/ModalCargaReintegro";
-import { mockReintegros, type Reintegro } from "../data/mockData";
+import { mockReintegros, type Reintegro } from "../../../data/mockData";
 import { Calendar, Plus, ChevronLeft, ChevronRight, FileSearch, CheckCircle2, AlertCircle } from "lucide-react";
 
 export function Reintegros() {

@@ -1,73 +1,59 @@
-# React + TypeScript + Vite
+# AppMediUnahur-AP — Portal de Prestadores
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend del portal de prestadores del Portal de Medicina Integral UNAHUR. Permite a los prestadores gestionar solicitudes, turnos, situaciones terapéuticas e historia clínica.
 
-Currently, two official plugins are available:
+## Tecnologías
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React + TypeScript + Vite
+- Tailwind CSS
+- React Router DOM
+- Autenticación via cookie JWT (httpOnly)
 
-## React Compiler
+## Requisitos previos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- [Node.js v18+](https://nodejs.org/)
+- Backend `app-unahur-portal` corriendo en el puerto 9002
 
-## Expanding the ESLint configuration
+## Instalación
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# 1. Clonar el repo
+git clone <url-del-repo>
+cd AppMediUnahur-AP
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# 2. Instalar dependencias
+npm install
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 3. Crear archivo de variables de entorno
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Variables de entorno
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Crear un archivo `.env` en la raíz:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_API_URL=http://localhost:9002
+VITE_USER_MOCK=false
 ```
+
+> `VITE_USER_MOCK=false` usa el backend real. Cambiar a `true` solo para desarrollo sin backend.
+
+## Ejecutar en desarrollo
+
+```bash
+npm run dev
+```
+
+El portal queda disponible en **http://localhost:5173** (o 5174/5175 si el puerto ya está en uso)
+
+## Acceso
+
+Los prestadores inician sesión con sus credenciales registradas en el sistema (CUIT/CUIL + contraseña).
+
+## Funcionalidades
+
+- **Dashboard**: estadísticas y resumen del prestador
+- **Solicitudes**: gestión de solicitudes de afiliados
+- **Turnos**: agenda de turnos por mes
+- **Situaciones terapéuticas**: registro y seguimiento por afiliado
+- **Historia clínica**: consulta del historial de afiliados
