@@ -1,38 +1,54 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaReintegro } from "../components/ModalCargaReintegro";
-import { mockReintegros, type Reintegro } from "../../../data/mockData";
+import { reintegrosApi, type ReintegroAPI } from "../../../services/api";
 import { Calendar, Plus, ChevronLeft, ChevronRight, FileSearch, CheckCircle2, AlertCircle } from "lucide-react";
+
+const ITEMS_POR_PAGINA = 6;
 
 export function Reintegros() {
   const { activeProfile } = useOutletContext<{ activeProfile: Persona }>();
 
   const [filtro, setFiltro] = useState<FiltroEstado>("PENDIENTE");
-  const [listaReintegros, setListaReintegros] = useState<Reintegro[]>(mockReintegros);
+  const [listaReintegros, setListaReintegros] = useState<ReintegroAPI[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [paginaActual, setPaginaActual] = useState(1);
-  const ITEMS_POR_PAGINA = 6;
 
-  const [reintegroVistaDetalle, setReintegroVistaDetalle] = useState<Reintegro | null>(null);
+  const [reintegroVistaDetalle, setReintegroVistaDetalle] = useState<ReintegroAPI | null>(null);
   const [textoRespuesta, setTextoRespuesta] = useState("");
+  const [enviandoRespuesta, setEnviandoRespuesta] = useState(false);
   const [isCargaModalOpen, setIsCargaModalOpen] = useState(false);
-  const [reintegroAEditar, setReintegroAEditar] = useState<Reintegro | null>(null);
+
+  const cargarReintegros = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await reintegrosApi.getMisReintegros();
+      setListaReintegros(data);
+    } catch {
+      setError("No se pudieron cargar los reintegros.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { cargarReintegros(); }, [cargarReintegros]);
+  useEffect(() => { setPaginaActual(1); }, [filtro]);
 
   const obtenerDatosFiltrados = () => {
-    const delUsuario = listaReintegros.filter(r => r.idIntegrante === activeProfile.id);
     const limiteSemanas = new Date();
     limiteSemanas.setDate(limiteSemanas.getDate() - 7);
     limiteSemanas.setHours(0, 0, 0, 0);
 
-    return delUsuario.filter(r => {
+    return listaReintegros.filter(r => {
       if (filtro === "PENDIENTE") return r.estado === "Recibido" || r.estado === "En análisis";
       if (filtro === "OBSERVADA") return r.estado === "Observado";
-
-      const fechaDelTramite = new Date(r.fechaEstado + "T00:00:00");
+      const fechaDelTramite = new Date((r.fechaEstado || r.fechaPrestacion) + "T00:00:00");
       if (filtro === "RECHAZADA") return r.estado === "Rechazado" && fechaDelTramite >= limiteSemanas;
-      if (filtro === "APROBADA") return r.estado === "Aprobado" && fechaDelTramite >= limiteSemanas;
-
+      if (filtro === "APROBADA")  return r.estado === "Aprobado"  && fechaDelTramite >= limiteSemanas;
       return false;
     });
   };
@@ -42,28 +58,22 @@ export function Reintegros() {
   const indexInicio = (paginaActual - 1) * ITEMS_POR_PAGINA;
   const datosPaginados = datosFiltrados.slice(indexInicio, indexInicio + ITEMS_POR_PAGINA);
 
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [filtro]);
-
-  const simularBorrado = (id: string) => {
-    setListaReintegros(prev => prev.filter(r => r.id !== id));
+  const handleClicEstado = (reintegro: ReintegroAPI) => {
+    setReintegroVistaDetalle(reintegro);
   };
 
-  const simularRespuestaObservacion = (id: string) => {
-    setListaReintegros(prev => prev.map(r =>
-      r.id === id ? { ...r, estado: "En análisis", fechaEstado: new Date().toISOString().split('T')[0] } : r
-    ));
-    setReintegroVistaDetalle(null);
-    setTextoRespuesta("");
-  };
-
-  const handleClicEstado = (reintegro: Reintegro) => {
-    if (reintegro.estado === "Recibido") {
-      setReintegroAEditar(reintegro);
-      setIsCargaModalOpen(true);
-    } else {
-      setReintegroVistaDetalle(reintegro);
+  const handleEnviarRespuesta = async () => {
+    if (!reintegroVistaDetalle || !textoRespuesta.trim()) return;
+    setEnviandoRespuesta(true);
+    try {
+      const actualizado = await reintegrosApi.responderObservacion(reintegroVistaDetalle.id, textoRespuesta.trim());
+      setListaReintegros(prev => prev.map(r => r.id === actualizado.id ? actualizado : r));
+      setReintegroVistaDetalle(null);
+      setTextoRespuesta("");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Error al enviar la respuesta");
+    } finally {
+      setEnviandoRespuesta(false);
     }
   };
 
@@ -80,7 +90,7 @@ export function Reintegros() {
         </div>
 
         <button
-          onClick={() => { setReintegroAEditar(null); setIsCargaModalOpen(true); }}
+          onClick={() => setIsCargaModalOpen(true)}
           className="bg-unahur hover:bg-unahur-dark text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-unahur/30 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
         >
           <Plus size={20} /> Nueva Solicitud
@@ -107,57 +117,68 @@ export function Reintegros() {
         </div>
 
         <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-50 text-[10px] uppercase text-gray-400">
-                <th className="px-8 py-5 font-black tracking-widest">Fecha / Lugar</th>
-                <th className="px-8 py-5 font-black tracking-widest">Médico</th>
-                <th className="px-8 py-5 font-black tracking-widest">Monto</th>
-                <th className="px-8 py-5 font-black tracking-widest text-right">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {datosPaginados.length > 0 ? (
-                datosPaginados.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-black text-gray-900 group-hover:text-unahur transition-colors">{r.fechaPrestacion}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.lugarAtencion}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-black text-gray-900">{r.medico}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.especialidad}</p>
-                    </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-black text-green-600">${r.factura.valorTotal.toLocaleString()}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.formaPago}</p>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <button
-                        onClick={() => handleClicEstado(r)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm active:scale-95 ${r.estado === "Aprobado" ? "bg-green-50 text-green-600 hover:bg-green-100" :
-                          r.estado === "Rechazado" ? "bg-red-50 text-red-600 hover:bg-red-100" :
+          {loading ? (
+            <div className="flex items-center justify-center p-20 opacity-40">
+              <p className="text-sm font-medium">Cargando reintegros...</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center p-20 text-red-500 opacity-60">
+              <p className="text-sm font-medium">{error}</p>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-gray-50 text-[10px] uppercase text-gray-400">
+                  <th className="px-8 py-5 font-black tracking-widest">Fecha / Lugar</th>
+                  <th className="px-8 py-5 font-black tracking-widest">Médico</th>
+                  <th className="px-8 py-5 font-black tracking-widest">Monto</th>
+                  <th className="px-8 py-5 font-black tracking-widest text-right">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {datosPaginados.length > 0 ? (
+                  datosPaginados.map((r) => (
+                    <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="px-8 py-6">
+                        <p className="text-sm font-black text-gray-900 group-hover:text-unahur transition-colors">{r.fechaPrestacion}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.lugarAtencion}</p>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-sm font-black text-gray-900">{r.medico}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.especialidad}</p>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-sm font-black text-green-600">${r.factura.valorTotal.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.formaPago}</p>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <button
+                          onClick={() => handleClicEstado(r)}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm active:scale-95 ${
+                            r.estado === "Aprobado"  ? "bg-green-50 text-green-600 hover:bg-green-100" :
+                            r.estado === "Rechazado" ? "bg-red-50 text-red-600 hover:bg-red-100" :
                             r.estado === "Observado" ? "bg-amber-50 text-amber-600 hover:bg-amber-100" :
-                              "bg-gray-50 text-gray-600 hover:bg-unahur hover:text-white"
+                            "bg-gray-50 text-gray-600 hover:bg-unahur hover:text-white"
                           }`}
-                      >
-                        {r.estado}
-                      </button>
+                        >
+                          {r.estado}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="p-20 text-center">
+                      <div className="flex flex-col items-center justify-center text-gray-300">
+                        <Calendar size={64} className="mb-4 opacity-20" />
+                        <p className="text-lg font-black uppercase tracking-widest text-gray-300">Sin Solicitudes</p>
+                      </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="p-20 text-center">
-                    <div className="flex flex-col items-center justify-center text-gray-300">
-                      <Calendar size={64} className="mb-4 opacity-20" />
-                      <p className="text-lg font-black uppercase tracking-widest text-gray-300">Sin Solicitudes</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {totalPaginas > 1 && (
@@ -185,19 +206,24 @@ export function Reintegros() {
         )}
       </div>
 
+      {/* Modal detalle / respuesta observación */}
       {reintegroVistaDetalle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => { setReintegroVistaDetalle(null); setTextoRespuesta(""); }}></div>
+          <div
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+            onClick={() => { setReintegroVistaDetalle(null); setTextoRespuesta(""); }}
+          />
           <div className="relative bg-white max-w-lg w-full rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 border-b border-gray-50 flex items-center justify-between">
               <div>
                 <p className="text-[10px] text-unahur font-black uppercase tracking-widest mb-1">Detalle del Trámite</p>
                 <h3 className="text-xl font-black text-gray-900">{reintegroVistaDetalle.medico}</h3>
               </div>
-              <div className={`p-2 rounded-xl text-xs font-black uppercase ${reintegroVistaDetalle.estado === "Aprobado" ? "bg-green-50 text-green-600" :
+              <div className={`p-2 rounded-xl text-xs font-black uppercase ${
+                reintegroVistaDetalle.estado === "Aprobado"  ? "bg-green-50 text-green-600" :
                 reintegroVistaDetalle.estado === "Rechazado" ? "bg-red-50 text-red-600" :
-                  "bg-amber-50 text-amber-600"
-                }`}>
+                "bg-amber-50 text-amber-600"
+              }`}>
                 {reintegroVistaDetalle.estado}
               </div>
             </div>
@@ -242,7 +268,7 @@ export function Reintegros() {
                     onChange={(e) => setTextoRespuesta(e.target.value)}
                     className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-unahur transition-all min-h-[120px]"
                     placeholder="Escriba su descargo o adjunte información adicional..."
-                  ></textarea>
+                  />
                 </div>
               )}
             </div>
@@ -252,17 +278,17 @@ export function Reintegros() {
                 <>
                   <button
                     onClick={() => { setReintegroVistaDetalle(null); setTextoRespuesta(""); }}
-                    className="w-1/3 py-4 bg-white text-gray-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all transition-colors"
+                    className="w-1/3 py-4 bg-white text-gray-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all"
                   >
                     Cerrar
                   </button>
                   <button
-                    onClick={() => simularRespuestaObservacion(reintegroVistaDetalle.id)}
-                    disabled={textoRespuesta.trim() === ""}
+                    onClick={handleEnviarRespuesta}
+                    disabled={enviandoRespuesta || !textoRespuesta.trim()}
                     className="flex-grow py-4 bg-unahur text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-unahur/30 hover:bg-unahur-dark disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 size={16} />
-                    Enviar Respuesta
+                    {enviandoRespuesta ? "Enviando..." : "Enviar Respuesta"}
                   </button>
                 </>
               ) : (
@@ -282,8 +308,7 @@ export function Reintegros() {
         isOpen={isCargaModalOpen}
         onClose={() => setIsCargaModalOpen(false)}
         activeProfile={activeProfile}
-        reintegroAEditar={reintegroAEditar}
-        onDelete={simularBorrado}
+        onReintegroExitoso={cargarReintegros}
       />
     </div>
   );

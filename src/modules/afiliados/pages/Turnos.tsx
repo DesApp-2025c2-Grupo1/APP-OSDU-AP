@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   ArrowLeft, Plus, Clock, MapPin, User,
@@ -6,10 +6,8 @@ import {
 } from "lucide-react";
 import { type Persona } from "../components/Layout";
 import { ModalReservaTurno } from "../components/ModalReservaTurno";
-import {
-  mockTurnos, mockTurnosDisponibles,
-  type Turno, type FiltroTurno, type TurnoDisponible,
-} from "../../../data/mockData";
+import { turnosApi, type TurnoAPI } from "../../../services/api";
+import { type FiltroTurno, type EstadoTurno } from "../../../data/mockData";
 
 const ITEMS_POR_PAGINA = 5;
 
@@ -19,32 +17,34 @@ const MESES_CORTO: Record<string, string> = {
   "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic",
 };
 
-const calcularEdad = (fechaNac: string) => {
-  const hoy = new Date();
-  const cumple = new Date(fechaNac);
-  let edad = hoy.getFullYear() - cumple.getFullYear();
-  const m = hoy.getMonth() - cumple.getMonth();
-  if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
-  return edad;
+const STATUS_MAP: Record<string, EstadoTurno> = {
+  reservado: "Reservado",
+  atendido: "Completado",
+  ausente: "Completado",
+  cancelado: "Cancelado",
 };
 
-const GRUPO_FAMILIAR_MOCK: Persona[] = [
-  { id: "102", nombre: "Rocío",  apellido: "González", fechaNacimiento: "1992-03-20", rol: "Conyuge" },
-  { id: "103", nombre: "Lucas",  apellido: "Pérez",    fechaNacimiento: "2018-07-10", rol: "Hijo"    },
-  { id: "104", nombre: "Mía",    apellido: "Pérez",    fechaNacimiento: "2020-02-15", rol: "Hijo"    },
-  { id: "105", nombre: "Santi",  apellido: "Pérez",    fechaNacimiento: "2002-11-20", rol: "Hijo"    },
-];
+interface TurnoVista {
+  id: string;
+  medico: string;
+  especialidad: string;
+  lugar: string;
+  fecha: string;
+  horario: string;
+  estado: EstadoTurno;
+}
 
-const obtenerNombreIntegrante = (id: string): string => {
-  const todos: Persona[] = [
-    { id: "101", nombre: "Octavio", apellido: "Pérez", fechaNacimiento: "1990-05-15", rol: "Titular" },
-    ...GRUPO_FAMILIAR_MOCK,
-  ];
-  const p = todos.find((x) => x.id === id);
-  return p ? `${p.nombre} ${p.apellido}` : id;
-};
+const mapApiToVista = (t: TurnoAPI): TurnoVista => ({
+  id: String(t.id),
+  medico: t.prestador.nombre ?? "N/A",
+  especialidad: t.prestador.especialidad ?? "",
+  lugar: [t.lugar.direccion, t.lugar.localidad].filter(Boolean).join(", "),
+  fecha: t.fecha ? t.fecha.split('T')[0] : t.fecha,
+  horario: t.horaIni,
+  estado: STATUS_MAP[t.status] ?? "Reservado",
+});
 
-const esCancelable = (turno: Turno): boolean => {
+const esCancelable = (turno: TurnoVista): boolean => {
   if (turno.estado !== "Reservado") return false;
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
@@ -69,24 +69,31 @@ export function Turnos() {
   const { activeProfile } = useOutletContext<{ activeProfile: Persona }>();
 
   const [filtro, setFiltro] = useState<FiltroTurno>("PROXIMOS");
-  const [listaTurnos, setListaTurnos] = useState<Turno[]>(mockTurnos);
-  const [disponibles, setDisponibles] = useState<TurnoDisponible[]>(mockTurnosDisponibles);
+  const [listaTurnos, setListaTurnos] = useState<TurnoVista[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [paginaActual, setPaginaActual] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmCancelarId, setConfirmCancelarId] = useState<string | null>(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState("");
+  const [cancelando, setCancelando] = useState(false);
 
-  const integrantesSeleccionables = GRUPO_FAMILIAR_MOCK.filter((p) => {
-    if (activeProfile.rol === "Titular") {
-      return p.rol === "Conyuge" || (p.rol === "Hijo" && calcularEdad(p.fechaNacimiento) < 18);
+  const cargarTurnos = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await turnosApi.getMisTurnos();
+      setListaTurnos(data.map(mapApiToVista));
+    } catch {
+      setError("No se pudieron cargar los turnos.");
+    } finally {
+      setLoading(false);
     }
-    if (activeProfile.rol === "Conyuge") {
-      return p.rol === "Hijo" && calcularEdad(p.fechaNacimiento) < 18;
-    }
-    return false;
-  });
+  }, []);
+
+  useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
 
   const datosFiltrados = listaTurnos.filter((t) => {
-    if (t.idIntegrante !== activeProfile.id) return false;
     if (filtro === "PROXIMOS")    return t.estado === "Reservado";
     if (filtro === "COMPLETADOS") return t.estado === "Completado";
     if (filtro === "CANCELADOS")  return t.estado === "Cancelado";
@@ -97,40 +104,28 @@ export function Turnos() {
   const indexInicio = (paginaActual - 1) * ITEMS_POR_PAGINA;
   const datosPaginados = datosFiltrados.slice(indexInicio, indexInicio + ITEMS_POR_PAGINA);
 
-  useEffect(() => { setPaginaActual(1); }, [filtro, activeProfile.id]);
+  useEffect(() => { setPaginaActual(1); }, [filtro]);
 
   useEffect(() => {
     const max = Math.ceil(datosFiltrados.length / ITEMS_POR_PAGINA);
     if (paginaActual > max && max > 0) setPaginaActual(max);
   }, [datosFiltrados.length, paginaActual]);
 
-  const handleCancelar = (id: string) => {
-    setListaTurnos((prev) =>
-      prev.map((t) => t.id === id ? { ...t, estado: "Cancelado" } : t)
-    );
-    setConfirmCancelarId(null);
-  };
-
-  const handleReservar = (idIntegrante: string, disponible: TurnoDisponible, horario: string) => {
-    const nuevo: Turno = {
-      id: `TU-${Date.now()}`,
-      idIntegrante,
-      medico: disponible.medico,
-      especialidad: disponible.especialidad,
-      lugar: disponible.lugar,
-      fecha: disponible.fecha,
-      horario,
-      estado: "Reservado",
-    };
-    setListaTurnos((prev) => [nuevo, ...prev]);
-    // Quitar el horario reservado de disponibles
-    setDisponibles((prev) =>
-      prev.map((d) =>
-        d.id === disponible.id
-          ? { ...d, horarios: d.horarios.filter((h) => h !== horario) }
-          : d
-      ).filter((d) => d.horarios.length > 0)
-    );
+  const handleCancelar = async (id: string) => {
+    if (!motivoCancelacion.trim()) return;
+    setCancelando(true);
+    try {
+      await turnosApi.cancelarTurno(id, motivoCancelacion.trim());
+      setListaTurnos((prev) =>
+        prev.map((t) => t.id === id ? { ...t, estado: "Cancelado" } : t)
+      );
+      setConfirmCancelarId(null);
+      setMotivoCancelacion("");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Error al cancelar el turno");
+    } finally {
+      setCancelando(false);
+    }
   };
 
   return (
@@ -193,10 +188,18 @@ export function Turnos() {
         </div>
 
         <div className="divide-y divide-gray-50 min-h-[280px]">
-          {datosPaginados.length > 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center p-14 opacity-40">
+              <p className="text-sm font-medium">Cargando turnos...</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center p-14 opacity-50 text-red-500">
+              <p className="text-sm font-medium">{error}</p>
+            </div>
+          ) : datosPaginados.length > 0 ? (
             datosPaginados.map((turno) => {
               const [, mes, dia] = turno.fecha.split("-");
-              const cancelando = confirmCancelarId === turno.id;
+              const esteConfirmando = confirmCancelarId === turno.id;
 
               return (
                 <div key={turno.id} className="p-4 sm:p-5 hover:bg-gray-50/50 transition-colors">
@@ -227,42 +230,54 @@ export function Turnos() {
                           <Clock size={11} className="text-gray-400" />
                           <span>{turno.horario} hs</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <MapPin size={11} className="text-gray-400" />
-                          <span className="truncate">{turno.lugar}</span>
-                        </div>
+                        {turno.lugar && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <MapPin size={11} className="text-gray-400" />
+                            <span className="truncate">{turno.lugar}</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 text-xs text-gray-500">
                           <User size={11} className="text-gray-400" />
-                          <span>{obtenerNombreIntegrante(turno.idIntegrante)}</span>
+                          <span>{activeProfile.nombre} {activeProfile.apellido}</span>
                         </div>
                       </div>
 
-                      {/* Cancelar */}
-                      {esCancelable(turno) && !cancelando && (
+                      {/* Botón cancelar */}
+                      {esCancelable(turno) && !esteConfirmando && (
                         <button
-                          onClick={() => setConfirmCancelarId(turno.id)}
+                          onClick={() => { setConfirmCancelarId(turno.id); setMotivoCancelacion(""); }}
                           className="mt-3 text-[10px] font-bold uppercase text-red-400 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors tracking-wider"
                         >
                           Cancelar turno
                         </button>
                       )}
 
-                      {/* Confirmación inline */}
-                      {cancelando && (
-                        <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-100 rounded-xl p-2.5 animate-in fade-in duration-150">
-                          <p className="text-xs text-red-600 font-semibold flex-1">¿Confirmar cancelación?</p>
-                          <button
-                            onClick={() => handleCancelar(turno.id)}
-                            className="text-[10px] font-black uppercase bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition-colors"
-                          >
-                            Sí, cancelar
-                          </button>
-                          <button
-                            onClick={() => setConfirmCancelarId(null)}
-                            className="text-[10px] font-bold uppercase text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-lg transition-colors"
-                          >
-                            No
-                          </button>
+                      {/* Confirmación inline con motivo */}
+                      {esteConfirmando && (
+                        <div className="mt-3 bg-red-50 border border-red-100 rounded-xl p-3 animate-in fade-in duration-150 flex flex-col gap-2">
+                          <p className="text-xs text-red-600 font-semibold">¿Confirmar cancelación?</p>
+                          <input
+                            type="text"
+                            placeholder="Ingresá el motivo..."
+                            value={motivoCancelacion}
+                            onChange={(e) => setMotivoCancelacion(e.target.value)}
+                            className="w-full p-2 border border-red-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-300"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleCancelar(turno.id)}
+                              disabled={cancelando || !motivoCancelacion.trim()}
+                              className="text-[10px] font-black uppercase bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40"
+                            >
+                              {cancelando ? "Cancelando..." : "Sí, cancelar"}
+                            </button>
+                            <button
+                              onClick={() => { setConfirmCancelarId(null); setMotivoCancelacion(""); }}
+                              className="text-[10px] font-bold uppercase text-gray-400 hover:text-gray-600 px-2 py-1.5 rounded-lg transition-colors"
+                            >
+                              No
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -311,9 +326,7 @@ export function Turnos() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         activeProfile={activeProfile}
-        integrantesSeleccionables={integrantesSeleccionables}
-        turnosDisponibles={disponibles}
-        onReservar={handleReservar}
+        onReservaExitosa={cargarTurnos}
       />
     </div>
   );

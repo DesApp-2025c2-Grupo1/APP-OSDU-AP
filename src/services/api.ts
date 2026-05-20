@@ -65,6 +65,172 @@ export interface FamilyMember {
   document_number: string;
 }
 
+export interface TurnoAPI {
+  id: number;
+  fecha: string;
+  horaIni: string;
+  horaFin: string;
+  status: string;
+  motivo: string | null;
+  nota: string | null;
+  motivoCancelacion: string | null;
+  prestador: { nombre: string | null; especialidad: string | null };
+  lugar: { direccion: string | null; localidad: string | null };
+}
+
+export interface AgendaAPI {
+  id: string;
+  prestador: string;
+  especialidad: string;
+  idEspecialidad: number;
+  lugar: string;
+  duracion: number;
+  dias: number[];
+  bloques: Array<{ dias: number[]; desde: string; hasta: string }>;
+}
+
+export interface EspecialidadAPI {
+  id: number;
+  nombre: string;
+}
+
+export interface SlotDisponible {
+  horaIni: string;
+  horaFin: string;
+}
+
+export interface ReintegroAPI {
+  id: number;
+  nro: string;
+  fechaPrestacion: string;
+  medico: string;
+  especialidad: string;
+  lugarAtencion: string;
+  factura: { cuit: string; valorTotal: number };
+  formaPago: string;
+  cbu: string | null;
+  observaciones: string;
+  estado: string;
+  fechaEstado: string;
+  mensajeObservacion: string | null;
+}
+
+export interface SubmitReintegroBody {
+  fechaPrestacion: string;
+  medico: string;
+  especialidad: string;
+  lugarAtencion: string;
+  facturaCuit: string;
+  facturaValor: number;
+  formaPago: string;
+  cbu?: string;
+  observaciones?: string;
+}
+
+export const reintegrosApi = {
+  getMisReintegros: async (): Promise<ReintegroAPI[]> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/reintegros`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error al obtener los reintegros");
+    return response.json();
+  },
+
+  submitReintegro: async (body: SubmitReintegroBody): Promise<ReintegroAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/reintegros`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar el reintegro");
+    }
+    return response.json();
+  },
+
+  responderObservacion: async (id: string | number, respuesta: string): Promise<ReintegroAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/reintegros/${id}/respuesta`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respuesta }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar la respuesta");
+    }
+    return response.json();
+  },
+};
+
+export const turnosApi = {
+  getMisTurnos: async (): Promise<TurnoAPI[]> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/turnos`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error al obtener turnos");
+    return response.json();
+  },
+
+  getTurnosDisponibles: async (agendaId: string, fecha: string): Promise<SlotDisponible[]> => {
+    const url = new URL(`${API_BASE_URL}/affiliates/turnos/disponibles`);
+    url.searchParams.set("agendaId", agendaId);
+    url.searchParams.set("fecha", fecha);
+    const response = await fetch(url.toString(), { credentials: "include" });
+    if (!response.ok) throw new Error("Error al obtener horarios disponibles");
+    return response.json();
+  },
+
+  reservarTurno: async (body: {
+    agendaId: string;
+    fecha: string;
+    horaIni: string;
+    horaFin: string;
+    motivo: string;
+  }): Promise<TurnoAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/turnos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message ?? "Error al reservar el turno");
+    }
+    return response.json();
+  },
+
+  cancelarTurno: async (id: string, motivo: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/turnos/${id}/cancelar`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ motivo }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message ?? "Error al cancelar el turno");
+    }
+  },
+
+  getAgendas: async (idEspecialidad?: number): Promise<AgendaAPI[]> => {
+    const url = new URL(`${API_BASE_URL}/agendas`);
+    if (idEspecialidad) url.searchParams.set("idEspecialidad", String(idEspecialidad));
+    const response = await fetch(url.toString(), { credentials: "include" });
+    if (!response.ok) throw new Error("Error al obtener agendas");
+    return response.json();
+  },
+
+  getEspecialidades: async (): Promise<EspecialidadAPI[]> => {
+    const response = await fetch(`${API_BASE_URL}/specialties`, { credentials: "include" });
+    if (!response.ok) throw new Error("Error al obtener especialidades");
+    return response.json();
+  },
+};
+
 export const api = {
   // Auth
   login: async (email: string, password: string) => {
