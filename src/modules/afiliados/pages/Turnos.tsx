@@ -17,7 +17,7 @@ const MESES_CORTO: Record<string, string> = {
   "09": "Sep", "10": "Oct", "11": "Nov", "12": "Dic",
 };
 
-const STATUS_MAP: Record<string, EstadoTurno> = {
+const ESTADO_MAP: Record<string, EstadoTurno> = {
   reservado: "Reservado",
   atendido: "Completado",
   ausente: "Completado",
@@ -41,7 +41,7 @@ const mapApiToVista = (t: TurnoAPI): TurnoVista => ({
   lugar: [t.lugar.direccion, t.lugar.localidad].filter(Boolean).join(", "),
   fecha: t.fecha ? t.fecha.split('T')[0] : t.fecha,
   horario: t.horaIni,
-  estado: STATUS_MAP[t.status] ?? "Reservado",
+  estado: ESTADO_MAP[t.estado] ?? "Reservado",
 });
 
 const esCancelable = (turno: TurnoVista): boolean => {

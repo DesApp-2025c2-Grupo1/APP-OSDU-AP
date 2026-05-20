@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, Users, ChevronRight, Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ActivationWaitModal } from "../components/ActivationWaitModal";
 import { api, type FamilyMember } from "../services/api";
+import { fetchGeorefLocalities, fetchGeorefProvinces, type GeorefLocality, type GeorefProvince } from "../services/georefService";
 
 export function Register() {
   const navigate = useNavigate();
@@ -10,47 +11,107 @@ export function Register() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [provincias, setProvincias] = useState<GeorefProvince[]>([]);
+  const [localidadesPorProvincia, setLocalidadesPorProvincia] = useState<Record<string, GeorefLocality[]>>({});
+  const [loadingGeoref, setLoadingGeoref] = useState(false);
+  const [loadingLocalidades, setLoadingLocalidades] = useState<Record<string, boolean>>({});
 
   // Form State
   const [formData, setFormData] = useState({
-    plan_id: 1, // Default to BRONCE
-    document_number: "",
-    document_type: "DNI",
-    birth_date: "",
-    first_name: "",
-    last_name: "",
+    idPlan: 1, // Default to BRONCE
+    nroDocumento: "",
+    tipoDocumento: "DNI",
+    fechaNacimiento: "",
+    nombre: "",
+    apellido: "",
     email: "",
-    phone: "",
-    address: "",
-    city: "",
-    province: "",
-    postal_code: "",
-    country: "",
-    family_members: [] as FamilyMember[],
+    telefono: "",
+    direccion: "",
+    localidad: "",
+    provincia: "",
+    codigoPostal: "",
+    pais: "",
+    familiares: [] as FamilyMember[],
     dni_document: null as File | null,
     payslip_document: null as File | null,
   });
 
   const [newFamilyMember, setNewFamilyMember] = useState<FamilyMember>({
-    full_name: "",
-    relationship: "Hijo/a",
-    document_number: "",
+    nombreCompleto: "",
+    parentesco: "Hijo/a",
+    nroDocumento: "",
   });
 
+  useEffect(() => {
+    const cargarProvincias = async () => {
+      try {
+        setLoadingGeoref(true);
+        const provinciasData = await fetchGeorefProvinces();
+        setProvincias(provinciasData);
+      } catch {
+        setError("No se pudieron cargar las provincias. Intentá nuevamente.");
+      } finally {
+        setLoadingGeoref(false);
+      }
+    };
+
+    cargarProvincias();
+  }, []);
+
+  const normalizeGeorefName = (value?: string) =>
+    (value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("es-AR");
+
+  const getProvinciaId = (provinciaNombre?: string) =>
+    provincias.find((provincia) => {
+      const provinceName = normalizeGeorefName(provincia.nombre);
+      const selectedName = normalizeGeorefName(provinciaNombre);
+
+      return provinceName === selectedName
+        || (provincia.id === "02" && ["caba", "ciudad de buenos aires", "capital federal"].includes(selectedName));
+    })?.id || "";
+
+  const cargarLocalidades = async (provinciaId: string) => {
+    if (!provinciaId || localidadesPorProvincia[provinciaId] || loadingLocalidades[provinciaId]) return;
+
+    setLoadingLocalidades((prev) => ({ ...prev, [provinciaId]: true }));
+    try {
+      const localidades = await fetchGeorefLocalities(provinciaId);
+      setLocalidadesPorProvincia((prev) => ({ ...prev, [provinciaId]: localidades }));
+    } catch {
+      setError("No se pudieron cargar las localidades. Intentá nuevamente.");
+    } finally {
+      setLoadingLocalidades((prev) => ({ ...prev, [provinciaId]: false }));
+    }
+  };
+
+  const handleProvinceChange = (provinceId: string) => {
+    const province = provincias.find((item) => item.id === provinceId);
+    setFormData((prev) => ({
+      ...prev,
+      provincia: province?.nombre || "",
+      localidad: "",
+    }));
+    void cargarLocalidades(provinceId);
+  };
+
   const handleAddFamilyMember = () => {
-    if (newFamilyMember.full_name && newFamilyMember.document_number) {
+    if (newFamilyMember.nombreCompleto && newFamilyMember.nroDocumento) {
       setFormData({
         ...formData,
-        family_members: [...formData.family_members, newFamilyMember],
+        familiares: [...formData.familiares, newFamilyMember],
       });
-      setNewFamilyMember({ full_name: "", relationship: "Hijo/a", document_number: "" });
+      setNewFamilyMember({ nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "" });
     }
   };
 
   const removeFamilyMember = (index: number) => {
-    const updated = [...formData.family_members];
+    const updated = [...formData.familiares];
     updated.splice(index, 1);
-    setFormData({ ...formData, family_members: updated });
+    setFormData({ ...formData, familiares: updated });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,31 +120,26 @@ export function Register() {
     setError(null);
     try {
       await api.registerAffiliate({
-        plan_id: formData.plan_id,
-        document_number: formData.document_number,
-        document_type: formData.document_type,
-        birth_date: formData.birth_date,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
+        idPlan: formData.idPlan,
+        nroDocumento: formData.nroDocumento,
+        tipoDocumento: formData.tipoDocumento,
+        fechaNacimiento: formData.fechaNacimiento,
+        nombre: formData.nombre,
+        apellido: formData.apellido,
         email: formData.email,
-        phone: formData.phone,
-        address: formData.address || undefined,
-        city: formData.city || undefined,
-        province: formData.province || undefined,
-        postal_code: formData.postal_code || undefined,
-        country: formData.country || undefined,
-        family_group: formData.family_members,
+        telefono: formData.telefono,
+        direccion: formData.direccion || undefined,
+        localidad: formData.localidad || undefined,
+        provincia: formData.provincia || undefined,
+        codigoPostal: formData.codigoPostal || undefined,
+        pais: formData.pais || undefined,
+        grupoFamiliar: formData.familiares,
         dni_document: formData.dni_document || undefined,
         payslip_document: formData.payslip_document || undefined,
       });
       setIsModalOpen(true);
     } catch (err: any) {
-      if (err.message === "Registration failed") {
-        // Intentar extraer mensaje detallado si el error viene de Joi
-        setError("Los datos ingresados son inválidos. Por favor revisa los campos.");
-      } else {
-        setError("Hubo un error al procesar tu afiliación. Por favor intenta de nuevo.");
-      }
+      setError(err.message || "Hubo un error al procesar tu afiliación. Por favor intenta de nuevo.");
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -121,8 +177,8 @@ export function Register() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
                   <select
-                    value={formData.document_type}
-                    onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
+                    value={formData.tipoDocumento}
+                    onChange={(e) => setFormData({ ...formData, tipoDocumento: e.target.value })}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   >
                     <option>DNI</option>
@@ -134,8 +190,8 @@ export function Register() {
                   <input
                     type="text"
                     required
-                    value={formData.document_number}
-                    onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
+                    value={formData.nroDocumento}
+                    onChange={(e) => setFormData({ ...formData, nroDocumento: e.target.value })}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                     placeholder="Ej: 12345678"
                   />
@@ -146,8 +202,8 @@ export function Register() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Plan de Salud</label>
                   <select
-                    value={formData.plan_id}
-                    onChange={(e) => setFormData({ ...formData, plan_id: parseInt(e.target.value) })}
+                    value={formData.idPlan}
+                    onChange={(e) => setFormData({ ...formData, idPlan: parseInt(e.target.value) })}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   >
                     <option value={1}>BRONCE</option>
@@ -161,8 +217,8 @@ export function Register() {
                   <input
                     type="date"
                     required
-                    value={formData.birth_date}
-                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                    value={formData.fechaNacimiento}
+                    onChange={(e) => setFormData({ ...formData, fechaNacimiento: e.target.value })}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   />
                 </div>
@@ -173,16 +229,16 @@ export function Register() {
                 <input
                   type="text"
                   required
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   placeholder="Juan"
                 />
                 <input
                   type="text"
                   required
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  value={formData.apellido}
+                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   placeholder="Pérez"
                 />
@@ -193,8 +249,8 @@ export function Register() {
                 <input
                   type="text"
                   required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                   placeholder="Ej: 2324123456"
                 />
@@ -219,40 +275,67 @@ export function Register() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">Calle y Altura</label>
                     <input
                       type="text"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      value={formData.direccion}
+                      onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                       placeholder="Ej: Calle Falsa 123"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Ciudad</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Provincia</label>
+                    <select
+                      value={getProvinciaId(formData.provincia)}
+                      onChange={(e) => handleProvinceChange(e.target.value)}
+                      disabled={loadingGeoref}
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
-                      placeholder="Ej: Hurlingham"
-                    />
+                    >
+                      <option value="">{loadingGeoref ? "Cargando provincias..." : "Seleccionar provincia"}</option>
+                      {provincias.map((provincia) => (
+                        <option key={provincia.id} value={provincia.id}>
+                          {provincia.nombre}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Provincia</label>
-                    <input
-                      type="text"
-                      value={formData.province}
-                      onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Localidad</label>
+                    <select
+                      value={formData.localidad}
+                      onChange={(e) => setFormData({ ...formData, localidad: e.target.value })}
+                      disabled={!getProvinciaId(formData.provincia) || Boolean(loadingLocalidades[getProvinciaId(formData.provincia)])}
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
-                      placeholder="Ej: Bs As"
-                    />
+                    >
+                      {(() => {
+                        const provinciaId = getProvinciaId(formData.provincia);
+                        const localidades = localidadesPorProvincia[provinciaId] || [];
+                        const cargando = Boolean(loadingLocalidades[provinciaId]);
+                        return (
+                          <>
+                            <option value="">
+                              {!provinciaId
+                                ? "Seleccione provincia"
+                                : cargando
+                                  ? "Cargando..."
+                                  : "Seleccionar localidad"}
+                            </option>
+                            {localidades.map((localidad) => (
+                              <option key={localidad.id} value={localidad.nombre}>
+                                {localidad.nombre}
+                              </option>
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">C. Postal</label>
                     <input
                       type="text"
-                      value={formData.postal_code}
-                      onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                      value={formData.codigoPostal}
+                      onChange={(e) => setFormData({ ...formData, codigoPostal: e.target.value })}
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                       placeholder="1686"
                     />
@@ -261,8 +344,8 @@ export function Register() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">País</label>
                     <input
                       type="text"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      value={formData.pais}
+                      onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
                       className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-unahur focus:border-transparent transition-all outline-none"
                       placeholder="Argentina"
                     />
@@ -288,11 +371,11 @@ export function Register() {
 
               {/* Added Members List */}
               <div className="space-y-3 mb-6">
-                {formData.family_members.map((member, index) => (
+                {formData.familiares.map((member, index) => (
                   <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <div>
-                      <p className="font-bold text-gray-900">{member.full_name}</p>
-                      <p className="text-sm text-gray-500">{member.relationship} • {member.document_number}</p>
+                      <p className="font-bold text-gray-900">{member.nombreCompleto}</p>
+                      <p className="text-sm text-gray-500">{member.parentesco} • {member.nroDocumento}</p>
                     </div>
                     <button
                       type="button"
@@ -309,23 +392,23 @@ export function Register() {
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
-                    value={newFamilyMember.full_name}
-                    onChange={(e) => setNewFamilyMember({ ...newFamilyMember, full_name: e.target.value })}
+                    value={newFamilyMember.nombreCompleto}
+                    onChange={(e) => setNewFamilyMember({ ...newFamilyMember, nombreCompleto: e.target.value })}
                     className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none text-sm"
                     placeholder="Nombre del familiar"
                   />
                   <input
                     type="text"
-                    value={newFamilyMember.document_number}
-                    onChange={(e) => setNewFamilyMember({ ...newFamilyMember, document_number: e.target.value })}
+                    value={newFamilyMember.nroDocumento}
+                    onChange={(e) => setNewFamilyMember({ ...newFamilyMember, nroDocumento: e.target.value })}
                     className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none text-sm"
                     placeholder="DNI"
                   />
                 </div>
                 <div className="flex gap-3">
                   <select
-                    value={newFamilyMember.relationship}
-                    onChange={(e) => setNewFamilyMember({ ...newFamilyMember, relationship: e.target.value })}
+                    value={newFamilyMember.parentesco}
+                    onChange={(e) => setNewFamilyMember({ ...newFamilyMember, parentesco: e.target.value })}
                     className="flex-grow p-3 bg-white border border-gray-200 rounded-xl outline-none text-sm"
                   >
                     <option>Hijo/a</option>

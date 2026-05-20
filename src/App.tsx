@@ -10,9 +10,17 @@ import { AfiliadosRoutes } from "./modules/afiliados/routes";
 import { PrestadoresRoutes } from "./modules/prestadores/routes";
 
 function AppRoutes() {
-  const { isAuthenticated, usuario } = useAuth();
+  const { isAuthenticated, usuario, isCheckingSession } = useAuth();
 
-  if (isAuthenticated && usuario?.mustChangePassword) {
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-sm font-semibold text-slate-500">Cargando...</p>
+      </div>
+    );
+  }
+
+  if (isAuthenticated && usuario?.debeCambiarPassword) {
     return (
       <Routes>
         <Route path="/change-password" element={<ChangePassword />} />
