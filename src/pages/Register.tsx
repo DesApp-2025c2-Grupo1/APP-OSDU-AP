@@ -154,7 +154,7 @@ export function Register() {
             Solicitud de <span className="text-unahur">Afiliación</span>
           </h2>
           <p className="mt-2 text-center text-sm text-gray-500">
-            Completa tus datos para formar parte de la comunidad UNAHUR.
+            Completa tus datos para formar parte de la comunidad OSDU.
           </p>
         </div>
 
