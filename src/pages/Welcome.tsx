@@ -71,7 +71,7 @@ const ACCESOS_RAPIDOS = [
       </svg>
     ),
     titulo: "Urgencias y Emergencias",
-    subtitulo: "0800-UNAHUR-24",
+    subtitulo: "0800-OSDU-24",
   },
   {
     icon: (
@@ -127,7 +127,7 @@ export function Welcome() {
   );
   const heroDescription = esPrestadores
     ? "Accedé al portal de prestadores para gestionar turnos, solicitudes, situaciones terapéuticas e historias clínicas desde un solo lugar."
-    : "Gestioná tus turnos, recetas, reintegros y autorizaciones desde la comodidad de tu hogar. La obra social de la comunidad UNAHUR.";
+    : "Gestioná tus turnos, recetas, reintegros y autorizaciones desde la comodidad de tu hogar. La obra social de la comunidad Universitaria.";
   const primaryCta = esPrestadores ? "Ingresar como Prestador" : "Iniciar Sesión";
   const secondaryCta = esPrestadores ? "Ir a Afiliados" : "Quiero Afiliarme";
   const serviciosMostrados = esPrestadores ? SERVICIOS_PRESTADORES : SERVICIOS_RAPIDOS;
@@ -142,7 +142,7 @@ export function Welcome() {
 
       {/* Barra superior */}
       <div className="bg-white border-b border-slate-100 py-2 px-6 text-center text-xs text-slate-400 hidden md:block">
-        Portal Oficial de Salud · Universidad Nacional de Hurlingham
+        Portal Oficial de Salud · Obra Social de Universitarios (OSDU)
       </div>
 
       {/* Header / Navbar */}
@@ -159,9 +159,9 @@ export function Welcome() {
               </div>
             )}
             <div>
-              <p className="text-sm font-black text-slate-900 leading-none">{esPrestadores ? "OSDU" : "MediUnahur"}</p>
+              <p className="text-sm font-black text-slate-900 leading-none">{esPrestadores ? "OSDU" : "OSDU"}</p>
               <p className="text-[10px] text-slate-400 leading-none mt-0.5">
-                {esPrestadores ? "Obra Social de Universitarios" : "Obra Social UNAHUR"}
+                {esPrestadores ? "Obra Social de Universitarios" : "Obra Social de Universitarios"}
               </p>
             </div>
           </div>
@@ -334,11 +334,11 @@ export function Welcome() {
               </div>
             )}
             <span className="text-slate-400 text-xs font-medium">
-              {esPrestadores ? "OSDU · Obra Social de Universitarios" : "MediUnahur · Obra Social UNAHUR"}
+              {esPrestadores ? "OSDU · Obra Social de Universitarios" : "OSDU · Obra Social De Universitarios"}
             </span>
           </div>
           <p className="text-slate-600 text-xs">
-            © 2026 Universidad Nacional de Hurlingham · Todos los derechos reservados
+            © 2026 Obra Social de Universitarios · Todos los derechos reservados
           </p>
         </div>
       </footer>

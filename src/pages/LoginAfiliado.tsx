@@ -44,7 +44,7 @@ export function LoginAfiliado() {
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="MediUnahur" className="w-10 h-10 object-contain" />
           <div>
-            <p className="text-base font-bold text-slate-800 leading-tight">MediUnahur</p>
+            <p className="text-base font-bold text-slate-800 leading-tight">OSDU</p>
             <p className="text-xs text-slate-400 leading-tight">Afiliados</p>
           </div>
         </div>

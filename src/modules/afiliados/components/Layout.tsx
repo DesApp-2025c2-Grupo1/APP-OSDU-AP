@@ -86,7 +86,7 @@ export function Layout() {
           </Link>
           <div className="hidden sm:block">
             <span className="font-black text-gray-900 text-lg tracking-tighter">
-              Medicina<span className="text-unahur">Integral</span>
+              Obra Social de <span className="text-unahur">Universitarios</span>
             </span>
           </div>
         </div>
