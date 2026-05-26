@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { UserCircle, ChevronDown, LogOut, LayoutDashboard, Shield } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { api } from "../../../services/api";
 
 export interface Persona {
   id: string;
@@ -11,35 +12,21 @@ export interface Persona {
   rol: "Titular" | "Conyuge" | "Hijo" | "Hermano" | "Otro";
 }
 
-const calcularEdad = (fechaNac: string) => {
-  const hoy = new Date();
-  const cumple = new Date(fechaNac);
-  let edad = hoy.getFullYear() - cumple.getFullYear();
-  const m = hoy.getMonth() - cumple.getMonth();
-  if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) edad--;
-  return edad;
+const normalizarParentesco = (parentesco: string): Persona["rol"] => {
+  const p = (parentesco || "").toLowerCase();
+  if (p === "titular") return "Titular";
+  if (p.includes("conyuge") || p.includes("cónyuge") || p.includes("esposo") || p.includes("esposa")) return "Conyuge";
+  if (p.includes("hijo") || p.includes("hija")) return "Hijo";
+  if (p.includes("hermano") || p.includes("hermana")) return "Hermano";
+  return "Otro";
 };
+
 
 const obtenerIntegrantesVisibles = (
   usuarioLogueado: Persona,
   grupoCompleto: Persona[]
 ) => {
-  if (usuarioLogueado.rol === "Titular") {
-    return grupoCompleto.filter((p) => {
-      if (p.id === usuarioLogueado.id) return false;
-      if (p.rol === "Conyuge") return true;
-      if (p.rol === "Hijo" && calcularEdad(p.fechaNacimiento) < 18) return true;
-      return false;
-    });
-  }
-  if (usuarioLogueado.rol === "Conyuge") {
-    return grupoCompleto.filter((p) => {
-      if (p.id === usuarioLogueado.id) return false;
-      if (p.rol === "Hijo" && calcularEdad(p.fechaNacimiento) < 18) return true;
-      return false;
-    });
-  }
-  return [];
+  return grupoCompleto.filter((p) => p.id !== usuarioLogueado.id);
 };
 
 export function Layout() {
@@ -54,18 +41,42 @@ export function Layout() {
     navigate("/welcome", { replace: true });
   };
 
-  const [userLogueado] = useState<Persona>({
+  const [userLogueado, setUserLogueado] = useState<Persona>({
     id: usuario?.id || "101",
     nombre: usuario?.nombre || "Usuario",
     apellido: usuario?.apellido || "",
-    fechaNacimiento: "1990-05-15",
+    fechaNacimiento: "1990-01-01",
     rol: "Titular",
   });
 
-  const grupoFamiliar: Persona[] = [];
+  const [grupoFamiliar, setGrupoFamiliar] = useState<Persona[]>([]);
+  const [activeProfile, setActiveProfile] = useState<Persona>(userLogueado);
+
+  useEffect(() => {
+    api.getMyProfile()
+      .then(({ afiliado, grupoFamiliar: miembros }) => {
+        const yo: Persona = {
+          id: String(afiliado.id),
+          nombre: afiliado.nombre,
+          apellido: afiliado.apellido,
+          fechaNacimiento: afiliado.fechaNacimiento || afiliado.fecha_nacimiento || "1990-01-01",
+          rol: normalizarParentesco(afiliado.parentesco),
+        };
+        const familia: Persona[] = miembros.map((m: any) => ({
+          id: String(m.id),
+          nombre: m.nombre,
+          apellido: m.apellido,
+          fechaNacimiento: m.fechaNacimiento || m.fecha_nacimiento || "2000-01-01",
+          rol: normalizarParentesco(m.parentesco),
+        }));
+        setUserLogueado(yo);
+        setActiveProfile(yo);
+        setGrupoFamiliar(familia);
+      })
+      .catch(() => {});
+  }, []);
 
   const integrantesVisibles = obtenerIntegrantesVisibles(userLogueado, grupoFamiliar);
-  const [activeProfile, setActiveProfile] = useState<Persona>(userLogueado);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -199,7 +210,7 @@ export function Layout() {
       </nav>
 
       <main className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <Outlet context={{ activeProfile }} />
+        <Outlet context={{ activeProfile, userLogueado }} />
       </main>
     </div>
   );

@@ -7,6 +7,7 @@ interface ModalReservaTurnoProps {
   isOpen: boolean;
   onClose: () => void;
   activeProfile: Persona;
+  userLogueado: Persona;
   onReservaExitosa: () => void;
 }
 
@@ -23,7 +24,8 @@ const formatearFecha = (fecha: string) => {
 
 const hoy = () => new Date().toISOString().split("T")[0];
 
-export function ModalReservaTurno({ isOpen, onClose, activeProfile, onReservaExitosa }: ModalReservaTurnoProps) {
+export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado, onReservaExitosa }: ModalReservaTurnoProps) {
+  const afiliadoId = activeProfile.id !== userLogueado.id ? activeProfile.id : undefined;
   const [especialidades, setEspecialidades] = useState<EspecialidadAPI[]>([]);
   const [especialidadId, setEspecialidadId] = useState<number | "">("");
   const [agendas, setAgendas] = useState<AgendaAPI[]>([]);
@@ -96,6 +98,7 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, onReservaExi
         horaIni: slotSeleccionado.horaIni,
         horaFin: slotSeleccionado.horaFin,
         motivo: motivo.trim(),
+        ...(afiliadoId ? { afiliadoId } : {}),
       });
       onReservaExitosa();
       onClose();
