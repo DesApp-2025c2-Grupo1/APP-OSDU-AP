@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
-import { ModalCargaReceta } from "../components/ModalCargaReceta"; 
+import { ModalCargaReceta } from "../components/ModalCargaReceta";
 import { mockRecetas, type Receta } from "../../../data/mockData";
-import { Filter, Calendar, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Filter, Calendar, Plus, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 
 export function Recetas() {
   const { activeProfile } = useOutletContext<{ activeProfile: Persona }>();
+  const navigate = useNavigate();
   
   const [filtro, setFiltro] = useState<FiltroEstado>("PENDIENTE");
   const [listaRecetas, setListaRecetas] = useState<Receta[]>(mockRecetas);
@@ -87,14 +88,22 @@ export function Recetas() {
 
   return (
     <div className="animate-in fade-in duration-500 relative">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-          Gestión de <span className="text-unahur font-black">Recetas</span>
-        </h1>
-        <p className="text-gray-500 text-sm">
-          Historial de medicamentos de: <span className="text-unahur font-bold">{activeProfile.nombre} {activeProfile.apellido}</span>
-        </p>
-      </header>
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => navigate("/")}
+          className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors flex-shrink-0"
+        >
+          <ArrowLeft size={16} className="text-gray-500" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
+            Gestión de <span className="text-unahur font-black">Recetas</span>
+          </h1>
+          <p className="text-gray-500 text-sm">
+            Historial de medicamentos de: <span className="text-unahur font-bold">{activeProfile.nombre} {activeProfile.apellido}</span>
+          </p>
+        </div>
+      </div>
 
       <DashboardFiltros filtroActual={filtro} setFiltro={setFiltro} />
 

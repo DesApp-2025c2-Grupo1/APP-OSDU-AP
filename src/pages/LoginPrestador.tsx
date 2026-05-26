@@ -58,13 +58,25 @@ export function LoginPrestador() {
       <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-emerald-100/80 to-transparent" />
 
       <div className="relative flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
-        <button
-          type="button"
-          onClick={() => navigate("/login/afiliado")}
-          className="absolute right-4 top-4 rounded-xl border border-emerald-200 bg-white/90 px-4 py-2 text-xs font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50 sm:right-6 sm:top-6"
-        >
-          Ingresar como afiliado
-        </button>
+        <div className="absolute right-4 top-4 flex items-center gap-2 sm:right-6 sm:top-6">
+          <button
+            type="button"
+            onClick={() => navigate("/welcome")}
+            className="rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-500 shadow-sm transition-colors hover:bg-slate-50 flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Inicio
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/login/afiliado")}
+            className="rounded-xl border border-emerald-200 bg-white/90 px-4 py-2 text-xs font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50"
+          >
+            Ingresar como afiliado
+          </button>
+        </div>
 
         <section className="grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-emerald-100 bg-white shadow-2xl shadow-emerald-950/10 lg:grid-cols-[1.05fr_0.95fr]">
           <aside className="hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-700 p-10 text-white lg:flex lg:flex-col lg:justify-between">

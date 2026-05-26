@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaReintegro } from "../components/ModalCargaReintegro";
 import { reintegrosApi, type ReintegroAPI } from "../../../services/api";
-import { Calendar, Plus, ChevronLeft, ChevronRight, FileSearch, CheckCircle2, AlertCircle } from "lucide-react";
+import { Calendar, Plus, ChevronLeft, ChevronRight, FileSearch, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 
 const ITEMS_POR_PAGINA = 6;
 
 export function Reintegros() {
   const { activeProfile } = useOutletContext<{ activeProfile: Persona }>();
+  const navigate = useNavigate();
 
   const [filtro, setFiltro] = useState<FiltroEstado>("PENDIENTE");
   const [listaReintegros, setListaReintegros] = useState<ReintegroAPI[]>([]);
@@ -80,13 +81,21 @@ export function Reintegros() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 leading-tight">
-            Gestión de <span className="text-unahur">Reintegros</span>
-          </h1>
-          <p className="text-gray-400 mt-1 font-medium">
-            Historial de trámites de <span className="text-gray-900 font-bold">{activeProfile.nombre}</span>
-          </p>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mt-1 flex-shrink-0"
+          >
+            <ArrowLeft size={16} className="text-gray-500" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-black text-gray-900 leading-tight">
+              Gestión de <span className="text-unahur">Reintegros</span>
+            </h1>
+            <p className="text-gray-400 mt-1 font-medium">
+              Historial de trámites de <span className="text-gray-900 font-bold">{activeProfile.nombre}</span>
+            </p>
+          </div>
         </div>
 
         <button
