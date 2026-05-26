@@ -2,29 +2,23 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, UserRound, MapPin, Phone, Clock,
-  ArrowLeft, Search, Stethoscope, ChevronDown, X, ChevronRight,
+  ArrowLeft, Search, Stethoscope, ChevronDown, X, ChevronRight, AlertCircle,
 } from "lucide-react";
-import {
-  PROVINCIAS,
-  LOCALIDADES_POR_PROVINCIA,
-  ESPECIALIDADES,
-  mockCentrosMedicos,
-  mockPrestadores,
-  type CentroMedico,
-  type Prestador,
-} from "../../../data/mockData";
+import { fetchGeorefProvinces, fetchGeorefLocalities, type GeorefProvince } from "../../../services/georefService";
+import { turnosApi, cartillaApi, type CartillaPrestadorAPI } from "../../../services/api";
 
 type TabType = "centros" | "prestadores";
 
 
 function Combobox({
-  options, value, onChange, placeholder, disabled = false,
+  options, value, onChange, placeholder, disabled = false, loading = false,
 }: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   disabled?: boolean;
+  loading?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -64,9 +58,9 @@ function Combobox({
       <div className="relative">
         <input
           type="text"
-          disabled={disabled}
+          disabled={disabled || loading}
           value={open ? query : value}
-          placeholder={placeholder}
+          placeholder={loading ? "Cargando..." : placeholder}
           onFocus={handleFocus}
           onChange={handleChange}
           className="w-full px-3 py-2.5 pr-8 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-700 placeholder-gray-400
@@ -79,14 +73,14 @@ function Combobox({
         />
       </div>
 
-      {open && !disabled && (
+      {open && !disabled && !loading && (
         <ul className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filtered.length === 0 ? (
             <li className="px-3 py-2.5 text-xs text-gray-400 text-center">Sin coincidencias</li>
           ) : (
-            filtered.map((option) => (
+            filtered.map((option, idx) => (
               <li
-                key={option}
+                key={`${option}-${idx}`}
                 onMouseDown={() => handleSelect(option)}
                 className={`px-3 py-2.5 text-sm cursor-pointer transition-colors
                   ${value === option ? "bg-unahur/10 text-unahur font-semibold" : "text-gray-700 hover:bg-gray-50"}`}
@@ -103,16 +97,13 @@ function Combobox({
 
 function DetalleModal({
   item,
-  tipo,
   onClose,
 }: {
-  item: CentroMedico | Prestador;
-  tipo: TabType;
+  item: CartillaPrestadorAPI;
   onClose: () => void;
 }) {
-  const esCentro = tipo === "centros";
-  const centro = item as CentroMedico;
-  const prestador = item as Prestador;
+  const esCentro = item.tipoPrestador === "centro_medico";
+  const lugar = item.lugaresAtencion[0];
 
   return (
     <div
@@ -123,24 +114,20 @@ function DetalleModal({
         className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle bar móvil */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
 
-        {/* Header */}
         <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="bg-unahur/10 text-unahur p-2.5 rounded-xl flex-shrink-0">
               {esCentro ? <Building2 size={20} /> : <UserRound size={20} />}
             </div>
             <div>
-              <p className="font-black text-gray-800 text-sm leading-tight">{item.nombre}</p>
-              {!esCentro && (
-                <p className="text-[10px] text-unahur font-bold uppercase tracking-wider mt-0.5">
-                  {prestador.matricula}
-                </p>
-              )}
+              <p className="font-black text-gray-800 text-sm leading-tight">{item.nombreCompleto}</p>
+              <p className="text-[10px] text-unahur font-bold uppercase tracking-wider mt-0.5">
+                {esCentro ? "Centro Médico" : "Profesional"}
+              </p>
             </div>
           </div>
           <button
@@ -151,9 +138,7 @@ function DetalleModal({
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-5 py-4 flex flex-col gap-4">
-          {/* Especialidades */}
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
               Especialidades
@@ -170,36 +155,43 @@ function DetalleModal({
             </div>
           </div>
 
-          {/* Ubicación */}
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-              Ubicación
-            </p>
-            <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <MapPin size={14} className="text-gray-400 flex-shrink-0" />
-                <span>{item.direccion}</span>
-              </div>
-              <p className="text-xs text-gray-400 pl-5">
-                {item.localidad}, {item.provincia}
+          {lugar && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                Ubicación
               </p>
+              <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <MapPin size={14} className="text-gray-400 flex-shrink-0" />
+                  <span>{lugar.calle}</span>
+                </div>
+                <p className="text-xs text-gray-400 pl-5">
+                  {lugar.localidad}, {lugar.provincia}
+                </p>
+              </div>
+              {item.lugaresAtencion.length > 1 && (
+                <p className="text-[10px] text-gray-400 mt-1.5 pl-1">
+                  +{item.lugaresAtencion.length - 1} lugar{item.lugaresAtencion.length - 1 > 1 ? "es" : ""} más
+                </p>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Contacto */}
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
               Contacto
             </p>
             <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <Phone size={14} className="text-gray-400 flex-shrink-0" />
-                <span>{item.telefono}</span>
-              </div>
-              {esCentro && (
+              {item.telefono && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                  <span>{item.telefono}</span>
+                </div>
+              )}
+              {esCentro && lugar?.horarios?.length > 0 && (
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <Clock size={14} className="text-gray-400 flex-shrink-0" />
-                  <span>{centro.horario}</span>
+                  <span>{lugar.horarios.join(" / ")}</span>
                 </div>
               )}
             </div>
@@ -227,49 +219,89 @@ export function ConsultarCartilla() {
   const [provincia, setProvincia] = useState("");
   const [localidad, setLocalidad] = useState("");
   const [especialidad, setEspecialidad] = useState("");
-  const [resultados, setResultados] = useState<CentroMedico[] | Prestador[] | null>(null);
-  const [detalle, setDetalle] = useState<CentroMedico | Prestador | null>(null);
 
-  const localidades = provincia ? LOCALIDADES_POR_PROVINCIA[provincia] ?? [] : [];
+  const [provincias, setProvincias] = useState<GeorefProvince[]>([]);
+  const [localidades, setLocalidades] = useState<string[]>([]);
+  const [especialidades, setEspecialidades] = useState<string[]>([]);
+
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingLocalities, setLoadingLocalities] = useState(false);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [resultados, setResultados] = useState<CartillaPrestadorAPI[] | null>(null);
+  const [detalle, setDetalle] = useState<CartillaPrestadorAPI | null>(null);
+
   const puedesBuscar = provincia !== "" && localidad !== "" && especialidad !== "";
+
+  useEffect(() => {
+    setLoadingProvinces(true);
+    Promise.all([
+      fetchGeorefProvinces(),
+      turnosApi.getEspecialidades(),
+    ])
+      .then(([provs, esps]) => {
+        setProvincias(provs);
+        setEspecialidades(esps.map((e) => e.nombre));
+      })
+      .catch(() => setError("No se pudieron cargar los datos iniciales."))
+      .finally(() => setLoadingProvinces(false));
+  }, []);
 
   const handleTabChange = (nuevaTab: TabType) => {
     setTab(nuevaTab);
     setProvincia("");
     setLocalidad("");
+    setLocalidades([]);
     setEspecialidad("");
     setResultados(null);
+    setError(null);
   };
 
   const handleVolverAElegir = () => {
     setTab(null);
     setProvincia("");
     setLocalidad("");
+    setLocalidades([]);
     setEspecialidad("");
     setResultados(null);
+    setError(null);
   };
 
-  const handleProvinciaChange = (value: string) => {
-    setProvincia(value);
+  const handleProvinciaChange = (nombreProvincia: string) => {
+    setProvincia(nombreProvincia);
     setLocalidad("");
+    setLocalidades([]);
     setResultados(null);
+
+    if (!nombreProvincia) return;
+    const found = provincias.find((p) => p.nombre === nombreProvincia);
+    if (!found) return;
+
+    setLoadingLocalities(true);
+    fetchGeorefLocalities(found.id)
+      .then((locs) => setLocalidades([...new Set(locs.map((l) => l.nombre))].sort()))
+      .catch(() => setError("No se pudieron cargar las localidades."))
+      .finally(() => setLoadingLocalities(false));
   };
 
-  const handleBuscar = () => {
+  const handleBuscar = async () => {
     if (!puedesBuscar || !tab) return;
+    setLoadingSearch(true);
+    setResultados(null);
+    setError(null);
 
-    if (tab === "centros") {
-      setResultados(
-        mockCentrosMedicos.filter(
-          (c) => c.provincia === provincia && c.localidad === localidad && c.especialidades.includes(especialidad)
-        )
-      );
-    } else {
-      setResultados(
-        mockPrestadores.filter(
-          (p) => p.provincia === provincia && p.localidad === localidad && p.especialidades.includes(especialidad)
-        )
-      );
+    try {
+      const data = await cartillaApi.buscar({
+        especialidad,
+        localidad,
+        tipoPrestador: tab === "centros" ? "centro_medico" : "profesional",
+      });
+      setResultados(data);
+    } catch {
+      setError("Ocurrió un error al buscar. Intentá nuevamente.");
+    } finally {
+      setLoadingSearch(false);
     }
   };
 
@@ -350,10 +382,11 @@ export function ConsultarCartilla() {
                 Provincia
               </label>
               <Combobox
-                options={PROVINCIAS}
+                options={provincias.map((p) => p.nombre)}
                 value={provincia}
                 onChange={handleProvinciaChange}
                 placeholder="Buscar provincia..."
+                loading={loadingProvinces}
               />
             </div>
 
@@ -367,6 +400,7 @@ export function ConsultarCartilla() {
                 onChange={(v) => { setLocalidad(v); setResultados(null); }}
                 placeholder="Buscar localidad..."
                 disabled={!provincia}
+                loading={loadingLocalities}
               />
             </div>
 
@@ -375,7 +409,7 @@ export function ConsultarCartilla() {
                 Especialidad
               </label>
               <Combobox
-                options={ESPECIALIDADES}
+                options={especialidades}
                 value={especialidad}
                 onChange={(v) => { setEspecialidad(v); setResultados(null); }}
                 placeholder="Buscar especialidad..."
@@ -386,14 +420,22 @@ export function ConsultarCartilla() {
 
           <button
             onClick={handleBuscar}
-            disabled={!puedesBuscar}
+            disabled={!puedesBuscar || loadingSearch}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm tracking-wide transition-all
               bg-unahur text-white shadow-md shadow-unahur/20 hover:bg-unahur-dark active:scale-[0.98]
               disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
           >
             <Search size={16} />
-            Buscar
+            {loadingSearch ? "Buscando..." : "Buscar"}
           </button>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-600">
+          <AlertCircle size={16} className="flex-shrink-0" />
+          {error}
         </div>
       )}
 
@@ -410,15 +452,15 @@ export function ConsultarCartilla() {
           {resultados.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
               <Stethoscope size={32} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-gray-400">Sin resultados</p>
-              <p className="text-xs text-gray-300 mt-1">
-                No hay {tab === "centros" ? "centros médicos" : "prestadores"} con esa combinación de filtros.
+              <p className="text-sm font-semibold text-gray-500">No se encontraron {tab === "centros" ? "centros médicos" : "prestadores"} en la zona indicada</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Probá con otra localidad o especialidad.
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {(resultados as (CentroMedico | Prestador)[]).map((item) => {
-                const esCentro = tab === "centros";
+              {resultados.map((item) => {
+                const lugar = item.lugaresAtencion[0];
                 return (
                   <button
                     key={item.id}
@@ -429,15 +471,10 @@ export function ConsultarCartilla() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="bg-unahur/10 text-unahur p-2.5 rounded-xl flex-shrink-0">
-                          {esCentro ? <Building2 size={18} /> : <UserRound size={18} />}
+                          {item.tipoPrestador === "centro_medico" ? <Building2 size={18} /> : <UserRound size={18} />}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-gray-800 text-sm truncate">{item.nombre}</p>
-                          {!esCentro && (
-                            <p className="text-[10px] text-unahur font-semibold uppercase tracking-wider mt-0.5">
-                              {(item as Prestador).matricula}
-                            </p>
-                          )}
+                          <p className="font-bold text-gray-800 text-sm truncate">{item.nombreCompleto}</p>
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {item.especialidades.map((esp) => (
                               <span
@@ -453,16 +490,22 @@ export function ConsultarCartilla() {
                       <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-x-4 gap-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <MapPin size={11} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{item.direccion}</span>
+                    {(lugar || item.telefono) && (
+                      <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-x-4 gap-y-1.5">
+                        {lugar && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{lugar.calle}</span>
+                          </div>
+                        )}
+                        {item.telefono && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <Phone size={11} className="text-gray-400 flex-shrink-0" />
+                            <span>{item.telefono}</span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <Phone size={11} className="text-gray-400 flex-shrink-0" />
-                        <span>{item.telefono}</span>
-                      </div>
-                    </div>
+                    )}
                   </button>
                 );
               })}
@@ -472,10 +515,9 @@ export function ConsultarCartilla() {
       )}
 
       {/* Modal de detalle */}
-      {detalle && tab && (
+      {detalle && (
         <DetalleModal
           item={detalle}
-          tipo={tab}
           onClose={() => setDetalle(null)}
         />
       )}

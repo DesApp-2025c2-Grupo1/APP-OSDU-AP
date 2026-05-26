@@ -138,6 +138,42 @@ export interface SubmitReintegroBody {
   observaciones?: string;
 }
 
+export interface CartillaLugar {
+  calle: string;
+  localidad: string;
+  provincia: string;
+  horarios: string[];
+}
+
+export interface CartillaPrestadorAPI {
+  id: number;
+  nombreCompleto: string;
+  tipoPrestador: 'profesional' | 'centro_medico';
+  telefono: string;
+  especialidades: string[];
+  lugaresAtencion: CartillaLugar[];
+}
+
+export const cartillaApi = {
+  buscar: async (params: {
+    especialidad?: string;
+    localidad?: string;
+    tipoPrestador?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<CartillaPrestadorAPI[]> => {
+    const url = new URL(`${API_BASE_URL}/prestadores/cartilla`);
+    if (params.especialidad) url.searchParams.set("especialidad", params.especialidad);
+    if (params.localidad) url.searchParams.set("localidad", params.localidad);
+    if (params.tipoPrestador) url.searchParams.set("tipoPrestador", params.tipoPrestador);
+    if (params.page !== undefined) url.searchParams.set("page", String(params.page));
+    if (params.limit !== undefined) url.searchParams.set("limit", String(params.limit));
+    const response = await fetch(url.toString(), { credentials: "include" });
+    if (!response.ok) throw new Error("Error al buscar en la cartilla");
+    return response.json();
+  },
+};
+
 export const reintegrosApi = {
   getMisReintegros: async (): Promise<ReintegroAPI[]> => {
     const response = await fetch(`${API_BASE_URL}/affiliates/reintegros`, {
@@ -177,10 +213,10 @@ export const reintegrosApi = {
 };
 
 export const turnosApi = {
-  getMisTurnos: async (): Promise<TurnoAPI[]> => {
-    const response = await fetch(`${API_BASE_URL}/affiliates/turnos`, {
-      credentials: "include",
-    });
+  getMisTurnos: async (afiliadoId?: string): Promise<TurnoAPI[]> => {
+    const url = new URL(`${API_BASE_URL}/affiliates/turnos`);
+    if (afiliadoId) url.searchParams.set("afiliadoId", afiliadoId);
+    const response = await fetch(url.toString(), { credentials: "include" });
     if (!response.ok) throw new Error("Error al obtener turnos");
     return response.json();
   },
@@ -200,6 +236,7 @@ export const turnosApi = {
     horaIni: string;
     horaFin: string;
     motivo: string;
+    afiliadoId?: string;
   }): Promise<TurnoAPI> => {
     const response = await fetch(`${API_BASE_URL}/affiliates/turnos`, {
       method: "POST",
@@ -329,6 +366,14 @@ export const api = {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message ?? "Registration failed");
     }
+    return response.json();
+  },
+
+  getMyProfile: async () => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/me`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error al obtener el perfil");
     return response.json();
   },
 

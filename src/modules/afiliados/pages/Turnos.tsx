@@ -66,7 +66,8 @@ const ESTADO_COLOR: Record<string, string> = {
 
 export function Turnos() {
   const navigate = useNavigate();
-  const { activeProfile } = useOutletContext<{ activeProfile: Persona }>();
+  const { activeProfile, userLogueado } = useOutletContext<{ activeProfile: Persona; userLogueado: Persona }>();
+  const afiliadoId = activeProfile.id !== userLogueado.id ? activeProfile.id : undefined;
 
   const [filtro, setFiltro] = useState<FiltroTurno>("PROXIMOS");
   const [listaTurnos, setListaTurnos] = useState<TurnoVista[]>([]);
@@ -82,14 +83,14 @@ export function Turnos() {
     setLoading(true);
     setError(null);
     try {
-      const data = await turnosApi.getMisTurnos();
+      const data = await turnosApi.getMisTurnos(afiliadoId);
       setListaTurnos(data.map(mapApiToVista));
     } catch {
       setError("No se pudieron cargar los turnos.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [afiliadoId]);
 
   useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
 
@@ -326,6 +327,7 @@ export function Turnos() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         activeProfile={activeProfile}
+        userLogueado={userLogueado}
         onReservaExitosa={cargarTurnos}
       />
     </div>
