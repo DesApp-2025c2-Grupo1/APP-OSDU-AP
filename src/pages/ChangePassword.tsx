@@ -10,8 +10,12 @@ const getPasswordChecks = (password: string) => [
     valid: password.length >= 8,
   },
   {
-    label: "Incluye al menos una letra",
-    valid: /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(password),
+    label: "Incluye una minúscula",
+    valid: /[a-záéíóúüñ]/.test(password),
+  },
+  {
+    label: "Incluye una mayúscula",
+    valid: /[A-ZÁÉÍÓÚÜÑ]/.test(password),
   },
   {
     label: "Incluye al menos un número",
@@ -25,8 +29,10 @@ const getPasswordChecks = (password: string) => [
 
 export function ChangePassword() {
   const { logout, updateUsuario, usuario } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,8 +46,13 @@ export function ChangePassword() {
     e.preventDefault();
     setError(null);
 
+    if (!currentPassword.trim()) {
+      setError("Ingresá tu contraseña actual.");
+      return;
+    }
+
     if (!isPasswordValid) {
-      setError("La contraseña debe tener al menos 8 caracteres, incluir letras y números, y no contener espacios.");
+      setError("La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y números, y no contener espacios.");
       return;
     }
 
@@ -52,7 +63,7 @@ export function ChangePassword() {
 
     setIsLoading(true);
     try {
-      await api.changePassword(newPassword);
+      await api.changePassword(currentPassword, newPassword);
       setIsSuccess(true);
 
       updateUsuario({ debeCambiarPassword: false });
@@ -107,6 +118,28 @@ export function ChangePassword() {
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Contraseña Actual</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 pr-12 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
+                    placeholder="Tu contraseña actual"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword((value) => !value)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
+                  >
+                    {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Nueva Contraseña</label>
                 <div className="relative">

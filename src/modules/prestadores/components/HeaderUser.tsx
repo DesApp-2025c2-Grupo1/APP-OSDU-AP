@@ -442,7 +442,7 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
       return
     }
     try {
-      await api.changePassword(passwords.nueva)
+      await api.changePassword(passwords.actual, passwords.nueva)
       setPasswords({ actual: '', nueva: '', confirmar: '' })
       setMessage('Contraseña actualizada correctamente.')
     } catch {

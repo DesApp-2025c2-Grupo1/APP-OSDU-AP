@@ -320,11 +320,11 @@ export const api = {
     return response.json();
   },
 
-  changePassword: async (newPassword: string) => {
+  changePassword: async (currentPassword: string, newPassword: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nuevaPassword: newPassword }),
+      body: JSON.stringify({ currentPassword, newPassword }),
       credentials: "include",
     });
     if (!response.ok) {
