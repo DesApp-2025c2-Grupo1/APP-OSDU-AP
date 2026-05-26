@@ -328,8 +328,11 @@ export const api = {
       credentials: "include",
     });
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message ?? "Error changing password");
+      const contentType = response.headers.get("content-type") ?? "";
+      const err = contentType.includes("application/json")
+        ? await response.json().catch(() => ({}))
+        : { message: await response.text().catch(() => "") };
+      throw new Error(err.message || "Error changing password");
     }
     return response.json();
   },
