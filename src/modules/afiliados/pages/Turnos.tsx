@@ -7,7 +7,9 @@ import {
 import { type Persona } from "../components/Layout";
 import { ModalReservaTurno } from "../components/ModalReservaTurno";
 import { turnosApi, type TurnoAPI } from "../../../services/api";
-import { type FiltroTurno, type EstadoTurno } from "../../../data/mockData";
+
+type FiltroTurno = "PROXIMOS" | "COMPLETADOS" | "CANCELADOS";
+type EstadoTurno = "Reservado" | "Completado" | "Cancelado";
 
 const ITEMS_POR_PAGINA = 5;
 

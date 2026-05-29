@@ -3,7 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaReceta } from "../components/ModalCargaReceta";
-import { mockRecetas, type Receta } from "../../../data/mockData";
+import { recetasApi, type RecetaAPI } from "../../../services/api";
 import { Filter, Calendar, Plus, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 
 export function Recetas() {
@@ -11,21 +11,32 @@ export function Recetas() {
   const navigate = useNavigate();
   
   const [filtro, setFiltro] = useState<FiltroEstado>("PENDIENTE");
-  const [listaRecetas, setListaRecetas] = useState<Receta[]>(mockRecetas);
+  const [listaRecetas, setListaRecetas] = useState<RecetaAPI[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [paginaActual, setPaginaActual] = useState(1);
   const ITEMS_POR_PAGINA = 5;
 
   // Modales
-  const [recetaVistaDetalle, setRecetaVistaDetalle] = useState<Receta | null>(null);
+  const [recetaVistaDetalle, setRecetaVistaDetalle] = useState<RecetaAPI | null>(null);
   const [textoRespuesta, setTextoRespuesta] = useState("");
+  const [enviandoRespuesta, setEnviandoRespuesta] = useState(false);
   
   // Modal de Carga / Edición Total
   const [isCargaModalOpen, setIsCargaModalOpen] = useState(false);
-  const [recetaAEditar, setRecetaAEditar] = useState<Receta | null>(null);
 
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    recetasApi.getMisRecetas()
+      .then((data) => { if (mounted) setListaRecetas(data); })
+      .catch(() => { if (mounted) setError("No se pudieron cargar las recetas."); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
 
   const obtenerDatosFiltrados = () => {
-    const delUsuario = listaRecetas.filter(r => r.idIntegrante === activeProfile.id);
+    const delUsuario = listaRecetas.filter(r => String(r.idIntegrante) === String(activeProfile.id));
     const limiteSemanas = new Date();
     limiteSemanas.setDate(limiteSemanas.getDate() - 7);
     limiteSemanas.setHours(0, 0, 0, 0);
@@ -59,30 +70,27 @@ export function Recetas() {
         }
     }, [datosFiltrados.length, paginaActual]);
 
-  const simularBorrado = (id: string) => {
-    setListaRecetas(prev => prev.filter(r => r.id !== id));
-  };
-
-  const simularRespuestaObservacion = (id: string) => {
-    setListaRecetas(prev => prev.map(r => 
-      r.id === id ? { ...r, estado: "En análisis", fechaEstado: new Date().toISOString().split('T')[0] } : r
-    ));
-    setRecetaVistaDetalle(null);
-    setTextoRespuesta("");
-  };
-
-  // Lógica de clic en el estado de la tabla
-  const handleClicEstado = (receta: Receta) => {
-    if (receta.estado === "Recibido") {
-      setRecetaAEditar(receta);
-      setIsCargaModalOpen(true);
-    } else {
-      setRecetaVistaDetalle(receta);
+  const responderObservacion = async () => {
+    if (!recetaVistaDetalle || !textoRespuesta.trim()) return;
+    setEnviandoRespuesta(true);
+    try {
+      const actualizada = await recetasApi.responderObservacion(recetaVistaDetalle.id, textoRespuesta.trim());
+      setListaRecetas(prev => prev.map(r => r.id === actualizada.id ? actualizada : r));
+      setRecetaVistaDetalle(null);
+      setTextoRespuesta("");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Error al enviar la respuesta");
+    } finally {
+      setEnviandoRespuesta(false);
     }
   };
 
+  // Lógica de clic en el estado de la tabla
+  const handleClicEstado = (receta: RecetaAPI) => {
+    setRecetaVistaDetalle(receta);
+  };
+
   const abrirModalNuevaCarga = () => {
-    setRecetaAEditar(null);
     setIsCargaModalOpen(true);
   };
 
@@ -135,7 +143,19 @@ export function Recetas() {
               </tr>
             </thead>
             <tbody>
-              {datosPaginados.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="p-10 text-center text-gray-400">
+                    <p className="text-sm font-medium">Cargando recetas...</p>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={4} className="p-10 text-center text-red-500">
+                    <p className="text-sm font-medium">{error}</p>
+                  </td>
+                </tr>
+              ) : datosPaginados.length > 0 ? (
                 datosPaginados.map((r) => (
                   <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="p-4">
@@ -242,7 +262,7 @@ export function Recetas() {
               {recetaVistaDetalle.estado === "Observado" ? (
                 <>
                   <button onClick={() => setRecetaVistaDetalle(null)} className="px-4 py-2 text-gray-500 font-bold hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">Cancelar</button>
-                  <button onClick={() => simularRespuestaObservacion(recetaVistaDetalle.id)} disabled={textoRespuesta.trim() === ""} className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-lg hover:bg-amber-600 disabled:opacity-50">Enviar Respuesta</button>
+                  <button onClick={responderObservacion} disabled={textoRespuesta.trim() === "" || enviandoRespuesta} className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-lg hover:bg-amber-600 disabled:opacity-50">{enviandoRespuesta ? "Enviando..." : "Enviar Respuesta"}</button>
                 </>
               ) : (
                 <button onClick={() => setRecetaVistaDetalle(null)} className="px-5 py-2 text-gray-500 font-bold rounded-lg hover:text-red-500 hover:bg-red-50 transition-all">Cerrar</button>
@@ -257,8 +277,7 @@ export function Recetas() {
         isOpen={isCargaModalOpen} 
         onClose={() => setIsCargaModalOpen(false)} 
         activeProfile={activeProfile} 
-        recetaAEditar={recetaAEditar}
-        onDelete={simularBorrado}
+        onCreated={(receta) => setListaRecetas((prev) => [receta, ...prev])}
       />
 
     </div>
