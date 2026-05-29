@@ -3,7 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaAutorizacion } from "../components/ModalCargaAutorizacion";
-import { mockAutorizaciones, type Autorizacion } from "../../../data/mockData";
+import { autorizacionesApi, type AutorizacionAPI } from "../../../services/api";
 import { Filter, Calendar, Plus, ChevronLeft, ChevronRight, BedDouble, ArrowLeft } from "lucide-react";
 
 export function Autorizaciones() {
@@ -11,21 +11,32 @@ export function Autorizaciones() {
   const navigate = useNavigate();
   
   const [filtro, setFiltro] = useState<FiltroEstado>("PENDIENTE");
-  const [listaAutorizaciones, setListaAutorizaciones] = useState<Autorizacion[]>(mockAutorizaciones);
+  const [listaAutorizaciones, setListaAutorizaciones] = useState<AutorizacionAPI[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [paginaActual, setPaginaActual] = useState(1);
   const ITEMS_POR_PAGINA = 5;
 
   // Modales
-  const [autorizacionVistaDetalle, setAutorizacionVistaDetalle] = useState<Autorizacion | null>(null);
+  const [autorizacionVistaDetalle, setAutorizacionVistaDetalle] = useState<AutorizacionAPI | null>(null);
   const [textoRespuesta, setTextoRespuesta] = useState("");
+  const [enviandoRespuesta, setEnviandoRespuesta] = useState(false);
   
   // Modal de Carga / Edición Total
   const [isCargaModalOpen, setIsCargaModalOpen] = useState(false);
-  const [autorizacionAEditar, setAutorizacionAEditar] = useState<Autorizacion | null>(null);
 
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    autorizacionesApi.getMisAutorizaciones()
+      .then((data) => { if (mounted) setListaAutorizaciones(data); })
+      .catch(() => { if (mounted) setError("No se pudieron cargar las autorizaciones."); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
   
   const obtenerDatosFiltrados = () => {
-    const delUsuario = listaAutorizaciones.filter(r => r.idIntegrante === activeProfile.id);
+    const delUsuario = listaAutorizaciones.filter(r => String(r.idIntegrante) === String(activeProfile.id));
     const limiteSemanas = new Date();
     limiteSemanas.setDate(limiteSemanas.getDate() - 7);
     limiteSemanas.setHours(0, 0, 0, 0);
@@ -58,29 +69,26 @@ export function Autorizaciones() {
     }
   }, [datosFiltrados.length, paginaActual]);
 
-  const simularBorrado = (id: string) => {
-    setListaAutorizaciones(prev => prev.filter(r => r.id !== id));
-  };
-
-  const simularRespuestaObservacion = (id: string) => {
-    setListaAutorizaciones(prev => prev.map(r => 
-      r.id === id ? { ...r, estado: "En análisis", fechaEstado: new Date().toISOString().split('T')[0] } : r
-    ));
-    setAutorizacionVistaDetalle(null);
-    setTextoRespuesta("");
-  };
-
-  const handleClicEstado = (autorizacion: Autorizacion) => {
-    if (autorizacion.estado === "Recibido") {
-      setAutorizacionAEditar(autorizacion);
-      setIsCargaModalOpen(true);
-    } else {
-      setAutorizacionVistaDetalle(autorizacion);
+  const responderObservacion = async () => {
+    if (!autorizacionVistaDetalle || !textoRespuesta.trim()) return;
+    setEnviandoRespuesta(true);
+    try {
+      const actualizada = await autorizacionesApi.responderObservacion(autorizacionVistaDetalle.id, textoRespuesta.trim());
+      setListaAutorizaciones(prev => prev.map(a => a.id === actualizada.id ? actualizada : a));
+      setAutorizacionVistaDetalle(null);
+      setTextoRespuesta("");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Error al enviar la respuesta");
+    } finally {
+      setEnviandoRespuesta(false);
     }
   };
 
+  const handleClicEstado = (autorizacion: AutorizacionAPI) => {
+    setAutorizacionVistaDetalle(autorizacion);
+  };
+
   const abrirModalNuevaCarga = () => {
-    setAutorizacionAEditar(null);
     setIsCargaModalOpen(true);
   };
 
@@ -133,7 +141,19 @@ export function Autorizaciones() {
               </tr>
             </thead>
             <tbody>
-              {datosPaginados.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="p-10 text-center text-gray-400">
+                    <p className="text-sm font-medium">Cargando autorizaciones...</p>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={4} className="p-10 text-center text-red-500">
+                    <p className="text-sm font-medium">{error}</p>
+                  </td>
+                </tr>
+              ) : datosPaginados.length > 0 ? (
                 datosPaginados.map((a) => (
                   <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="p-4">
@@ -246,7 +266,7 @@ export function Autorizaciones() {
               {autorizacionVistaDetalle.estado === "Observado" ? (
                 <>
                   <button onClick={() => setAutorizacionVistaDetalle(null)} className="px-4 py-2 text-gray-500 font-bold hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">Cancelar</button>
-                  <button onClick={() => simularRespuestaObservacion(autorizacionVistaDetalle.id)} disabled={textoRespuesta.trim() === ""} className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-lg hover:bg-amber-600 disabled:opacity-50">Enviar Respuesta</button>
+                  <button onClick={responderObservacion} disabled={textoRespuesta.trim() === "" || enviandoRespuesta} className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-lg hover:bg-amber-600 disabled:opacity-50">{enviandoRespuesta ? "Enviando..." : "Enviar Respuesta"}</button>
                 </>
               ) : (
                 <button onClick={() => setAutorizacionVistaDetalle(null)} className="px-5 py-2 text-gray-500 font-bold rounded-lg hover:text-red-500 hover:bg-red-50 transition-all">Cerrar</button>
@@ -261,8 +281,7 @@ export function Autorizaciones() {
         isOpen={isCargaModalOpen} 
         onClose={() => setIsCargaModalOpen(false)} 
         activeProfile={activeProfile} 
-        autorizacionAEditar={autorizacionAEditar}
-        onDelete={simularBorrado}
+        onCreated={(autorizacion) => setListaAutorizaciones((prev) => [autorizacion, ...prev])}
       />
 
     </div>

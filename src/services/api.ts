@@ -6,6 +6,7 @@ const customFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   headers.set("X-Session-Allowed-Roles", "AFILIADO,PRESTADOR");
   return window.fetch(input, {
     ...init,
+    credentials: init?.credentials ?? "include",
     headers,
   });
 };
@@ -126,6 +127,52 @@ export interface ReintegroAPI {
   mensajeObservacion: string | null;
 }
 
+export interface RecetaAPI {
+  id: number;
+  nro: string;
+  idIntegrante: string;
+  medicamento: string;
+  presentacion: string;
+  cantidad: number;
+  fecha: string;
+  observaciones: string;
+  estado: string;
+  fechaEstado: string;
+  mensajeObservacion: string | null;
+}
+
+export interface SubmitRecetaBody {
+  medicamento: string;
+  presentacion: string;
+  cantidad: number;
+  fecha: string;
+  observaciones?: string;
+}
+
+export interface AutorizacionAPI {
+  id: number;
+  nro: string;
+  idIntegrante: string;
+  fechaPrevista: string;
+  especialidad: string;
+  medico: string;
+  lugarPrestacion: string;
+  diasInternacion: number;
+  observaciones: string;
+  estado: string;
+  fechaEstado: string;
+  mensajeObservacion: string | null;
+}
+
+export interface SubmitAutorizacionBody {
+  fechaPrevista: string;
+  especialidad: string;
+  medico: string;
+  lugarPrestacion: string;
+  diasInternacion: number;
+  observaciones?: string;
+}
+
 export interface SubmitReintegroBody {
   fechaPrestacion: string;
   medico: string;
@@ -199,6 +246,82 @@ export const reintegrosApi = {
 
   responderObservacion: async (id: string | number, respuesta: string): Promise<ReintegroAPI> => {
     const response = await fetch(`${API_BASE_URL}/affiliates/reintegros/${id}/respuesta`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respuesta }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar la respuesta");
+    }
+    return response.json();
+  },
+};
+
+export const recetasApi = {
+  getMisRecetas: async (): Promise<RecetaAPI[]> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/recetas`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error al obtener las recetas");
+    return response.json();
+  },
+
+  submitReceta: async (body: SubmitRecetaBody): Promise<RecetaAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/recetas`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar la receta");
+    }
+    return response.json();
+  },
+
+  responderObservacion: async (id: string | number, respuesta: string): Promise<RecetaAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/recetas/${id}/respuesta`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respuesta }),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar la respuesta");
+    }
+    return response.json();
+  },
+};
+
+export const autorizacionesApi = {
+  getMisAutorizaciones: async (): Promise<AutorizacionAPI[]> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/autorizaciones`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error("Error al obtener las autorizaciones");
+    return response.json();
+  },
+
+  submitAutorizacion: async (body: SubmitAutorizacionBody): Promise<AutorizacionAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/autorizaciones`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error((err as { message?: string }).message ?? "Error al enviar la autorización");
+    }
+    return response.json();
+  },
+
+  responderObservacion: async (id: string | number, respuesta: string): Promise<AutorizacionAPI> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/autorizaciones/${id}/respuesta`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ respuesta }),
@@ -360,10 +483,9 @@ export const api = {
       }
     });
 
-    const response = await fetch(`${API_BASE_URL}/affiliates`, {
+    const response = await fetch(`${API_BASE_URL}/affiliates/register`, {
       method: "POST",
       body: formData,
-      credentials: "include",
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -382,7 +504,7 @@ export const api = {
 
   getAffiliates: async (activo?: boolean) => {
     const url = new URL(`${API_BASE_URL}/affiliates`);
-    if (activo !== undefined) url.searchParams.append("activo", activo.toString());
+    if (activo !== undefined) url.searchParams.append("status", activo.toString());
 
     const response = await fetch(url.toString(), {
       credentials: "include",
