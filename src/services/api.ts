@@ -411,7 +411,10 @@ export const api = {
       body: JSON.stringify({ email, password }),
       credentials: "include", //para que se envie la cookie
     });
-    if (!response.ok) throw new Error("Login failed");
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "Login failed");
+    }
     return response.json();
   },
 
@@ -422,7 +425,10 @@ export const api = {
       body: JSON.stringify({ cuit, password }),
       credentials: "include",
     });
-    if (!response.ok) throw new Error("Login failed");
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "Login failed");
+    }
     return response.json();
   },
 
