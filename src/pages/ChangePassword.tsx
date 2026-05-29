@@ -46,7 +46,7 @@ export function ChangePassword() {
     e.preventDefault();
     setError(null);
 
-    if (!currentPassword.trim()) {
+    if (!usuario?.debeCambiarPassword && !currentPassword.trim()) {
       setError("Ingresá tu contraseña actual.");
       return;
     }
@@ -118,27 +118,29 @@ export function ChangePassword() {
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Contraseña Actual</label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPassword ? "text" : "password"}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 pr-12 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
-                    placeholder="Tu contraseña actual"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword((value) => !value)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
-                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
-                  >
-                    {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+              {!usuario?.debeCambiarPassword && (
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Contraseña Actual</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full bg-gray-50 border-none rounded-2xl px-5 py-4 pr-12 text-gray-900 focus:ring-2 focus:ring-unahur/20 transition-all"
+                      placeholder="Tu contraseña actual"
+                      required={!usuario?.debeCambiarPassword}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((value) => !value)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                      aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
+                    >
+                      {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Nueva Contraseña</label>
