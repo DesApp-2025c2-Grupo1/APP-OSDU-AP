@@ -104,6 +104,27 @@ const ACCESOS_RAPIDOS = [
 
 type SitioTipo = "afiliados" | "prestadores";
 
+function BrandMark({ useImage = false, className = "w-9 h-9" }: { useImage?: boolean; className?: string }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  if (useImage && !imageFailed) {
+    return (
+      <img
+        src="/logo.png"
+        alt="OSDU"
+        className={`${className} object-contain flex-shrink-0`}
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={`${className} bg-unahur rounded-xl flex items-center justify-center shadow-sm flex-shrink-0`}>
+      <span className="text-white font-black text-lg leading-none">U</span>
+    </div>
+  );
+}
+
 export function Welcome() {
   const navigate = useNavigate();
   const [sitioAbierto, setSitioAbierto] = useState(false);
@@ -147,25 +168,19 @@ export function Welcome() {
 
       {/* Header / Navbar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 min-h-16 py-3 flex flex-wrap items-center justify-between gap-3 lg:gap-6">
 
           {/* Logo */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {esPrestadores ? (
-              <img src="/logo.png" alt="OSDU" className="h-12 w-16 object-contain" />
-            ) : (
-              <div className="w-9 h-9 bg-unahur rounded-xl flex items-center justify-center shadow-sm">
-                <span className="text-white font-black text-lg leading-none">U</span>
-              </div>
-            )}
-            <div>
+          <div className="flex min-w-0 items-center gap-3 flex-shrink-0">
+            <BrandMark useImage={esPrestadores} className={esPrestadores ? "h-10 w-12 sm:h-12 sm:w-16" : "w-9 h-9"} />
+            <div className="min-w-0">
               <p className="text-sm font-black text-slate-900 leading-none">OSDU</p>
               <p className="text-[10px] text-slate-400 leading-none mt-0.5">Obra Social de Universitarios</p>
             </div>
           </div>
 
           {/* Nav links — desktop */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600">
             <button className={`transition-colors ${esPrestadores ? "hover:text-emerald-700" : "hover:text-unahur"}`}>Información Útil</button>
             <button className={`transition-colors ${esPrestadores ? "hover:text-emerald-700" : "hover:text-unahur"}`}>Cartilla Médica</button>
             <button className={`transition-colors ${esPrestadores ? "hover:text-emerald-700" : "hover:text-unahur"}`}>Prevención</button>
@@ -173,28 +188,30 @@ export function Welcome() {
           </nav>
 
           {/* Selector "Estoy en el sitio de" + acciones */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-1 items-center justify-end gap-2 sm:flex-none sm:gap-3">
 
             {/* Selector de sitio */}
-            <div className="relative hidden md:block">
+            <div className="relative order-3 w-full sm:order-none sm:w-auto">
               <button
                 onClick={() => setSitioAbierto((v) => !v)}
-                className={`flex items-center gap-2 text-xs font-semibold text-slate-600 border border-slate-200 px-4 py-2 rounded-xl transition-colors bg-slate-50 ${esPrestadores ? "hover:border-emerald-600/40" : "hover:border-unahur/40"}`}
+                className={`flex w-full items-center justify-between gap-2 text-xs font-semibold text-slate-600 border border-slate-200 px-3 sm:px-4 py-2 rounded-xl transition-colors bg-slate-50 sm:w-auto ${esPrestadores ? "hover:border-emerald-600/40" : "hover:border-unahur/40"}`}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Estoy en el sitio de:{" "}
-                <span className={esPrestadores ? "text-emerald-700" : "text-unahur"}>
-                  {sitioActual === "afiliados" ? "Afiliados" : "Prestadores"}
+                <span className="flex min-w-0 items-center gap-2">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="hidden md:inline">Estoy en el sitio de:</span>
+                  <span className={esPrestadores ? "truncate text-emerald-700" : "truncate text-unahur"}>
+                    {sitioActual === "afiliados" ? "Afiliados" : "Prestadores"}
+                  </span>
                 </span>
-                <svg className={`w-3 h-3 transition-transform ${sitioAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className={`w-3 h-3 flex-shrink-0 transition-transform ${sitioAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {sitioAbierto && (
-                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 sm:left-auto sm:w-52">
                   <button
                     onClick={() => handleSitioSelect("afiliados")}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-slate-50 transition-colors ${sitioActual === "afiliados" ? "text-unahur font-semibold" : "text-slate-700"}`}
@@ -219,7 +236,7 @@ export function Welcome() {
 
             <button
               onClick={() => navigate(loginPath)}
-              className={`text-sm font-semibold text-white px-5 py-2 rounded-xl transition-colors shadow-sm ${esPrestadores ? "bg-emerald-600 hover:bg-emerald-700" : "bg-unahur hover:bg-green-700"}`}
+              className={`text-sm font-semibold text-white px-4 sm:px-5 py-2 rounded-xl transition-colors shadow-sm ${esPrestadores ? "bg-emerald-600 hover:bg-emerald-700" : "bg-unahur hover:bg-green-700"}`}
             >
               Ingresar
             </button>
@@ -239,8 +256,8 @@ export function Welcome() {
         <div className={`absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none ${esPrestadores ? "bg-emerald-600/5" : "bg-unahur/5"}`} />
         <div className={`absolute bottom-0 left-0 w-96 h-96 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none ${esPrestadores ? "bg-emerald-100/40" : "bg-green-100/40"}`} />
 
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16 lg:py-24 relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-20">
 
             {/* Texto principal */}
             <div className="flex-1 text-center lg:text-left">
@@ -251,10 +268,10 @@ export function Welcome() {
                 {portalLabel}
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 leading-tight mb-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-tight mb-6">
                 {heroTitle}
               </h1>
-              <p className="text-lg text-slate-500 leading-relaxed mb-10 max-w-xl mx-auto lg:mx-0">
+              <p className="text-base sm:text-lg text-slate-500 leading-relaxed mb-8 sm:mb-10 max-w-xl mx-auto lg:mx-0">
                 {heroDescription}
               </p>
 
@@ -282,11 +299,11 @@ export function Welcome() {
 
             {/* Grid de servicios */}
             <div className="flex-1 w-full max-w-md lg:max-w-none">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {serviciosMostrados.map((s, i) => (
                   <div
                     key={i}
-                    className={`bg-white rounded-3xl p-5 min-h-40 border border-slate-100 shadow-sm transition-all cursor-default ${esPrestadores ? "hover:shadow-md hover:border-emerald-600/20" : "hover:shadow-md hover:border-unahur/20"}`}
+                    className={`bg-white rounded-3xl p-5 min-h-36 sm:min-h-40 border border-slate-100 shadow-sm transition-all cursor-default ${esPrestadores ? "hover:shadow-md hover:border-emerald-600/20" : "hover:shadow-md hover:border-unahur/20"}`}
                   >
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${esPrestadores ? "bg-emerald-600/10 text-emerald-700" : "bg-unahur/10 text-unahur"}`}>
                       {s.icon}
@@ -303,8 +320,8 @@ export function Welcome() {
 
       {/* Barra inferior de accesos rápidos */}
       <section className={esPrestadores ? "bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700" : "bg-unahur"}>
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-7 sm:py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6">
             {ACCESOS_RAPIDOS.map((item, i) => (
               <button
                 key={i}
@@ -325,14 +342,12 @@ export function Welcome() {
 
       {/* Footer */}
       <footer className="bg-slate-900 py-6">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <div className="flex items-center gap-3">
             {esPrestadores ? (
-              <img src="/logo.png" alt="OSDU" className="h-9 w-12 object-contain" />
+              <BrandMark useImage className="h-9 w-12" />
             ) : (
-              <div className="w-7 h-7 bg-unahur rounded-lg flex items-center justify-center">
-                <span className="text-white font-black text-sm">U</span>
-              </div>
+              <BrandMark className="w-7 h-7" />
             )}
             <span className="text-slate-400 text-xs font-medium">
               OSDU · Obra Social de Universitarios

@@ -6,6 +6,21 @@ import HeaderUser from '../components/HeaderUser'
 import Dropdown from '../components/Dropdown'
 import CalendarDateInput from '../components/CalendarDateInput'
 
+function normalizeSlashDate(value) {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value || '').trim())
+  if (!match) return value || ''
+  const [, first, second, yyyy] = match
+  if (Number(first) > 12) return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
+  return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
+}
+
+function toISODateFromDDMMYYYY(value) {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value || '').trim())
+  if (!match) return ''
+  const [, dd, mm, yyyy] = match
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
+}
+
 function estadoBadge(activa) {
   return activa
     ? <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-500 bg-emerald-100 text-emerald-700">Activo</span>
@@ -111,17 +126,17 @@ function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', 
   function parseDate(value) {
     const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
     if (!match) return null
-    const [, mm, dd, yyyy] = match
+    const [, dd, mm, yyyy] = match
     const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
     const valid = date.getFullYear() === Number(yyyy) && date.getMonth() === Number(mm) - 1 && date.getDate() === Number(dd)
     return valid ? date : null
   }
 
-  function formatDateMMDDYYYY(date) {
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
+  function formatDateDDMMYYYY(date) {
     const dd = String(date.getDate()).padStart(2, '0')
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
     const yyyy = date.getFullYear()
-    return `${mm}/${dd}/${yyyy}`
+    return `${dd}/${mm}/${yyyy}`
   }
 
   function toDateInputValue(value) {
@@ -136,7 +151,7 @@ function Modal({ title, form, onChange, onClose, onSave, saveLabel = 'Guardar', 
   function fromDateInputValue(value) {
     if (!value) return ''
     const [yyyy, mm, dd] = value.split('-')
-    return formatDateMMDDYYYY(new Date(Number(yyyy), Number(mm) - 1, Number(dd)))
+    return formatDateDDMMYYYY(new Date(Number(yyyy), Number(mm) - 1, Number(dd)))
   }
 
   function DateTextPicker({ value, onChange, hasError }) {
@@ -292,7 +307,11 @@ export default function Situaciones() {
         if (!r.ok) throw new Error(json.message || 'No se pudieron cargar las situaciones')
         return json
       })
-      .then(d => setSituaciones(d))
+      .then(d => setSituaciones(d.map(s => ({
+        ...s,
+        fechaInicio: normalizeSlashDate(s.fechaInicio),
+        fechaFin: normalizeSlashDate(s.fechaFin),
+      }))))
       .catch(e => setError(e.message || 'No se pudieron cargar las situaciones'))
   }
 
@@ -346,12 +365,17 @@ export default function Situaciones() {
   async function guardar() {
     if (!form.tipo || !editingAfiliado) return
     const idAfil = editingAfiliado.id
+    const payload = {
+      ...form,
+      fechaInicio: toISODateFromDDMMYYYY(form.fechaInicio) || form.fechaInicio,
+      fechaFin: form.fechaFin ? (toISODateFromDDMMYYYY(form.fechaFin) || form.fechaFin) : '',
+    }
     try {
       if (modal === 'editar') {
         const res = await fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${idAfil}/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
           credentials: 'include'
         })
         const json = await res.json().catch(() => ({}))
@@ -360,7 +384,7 @@ export default function Situaciones() {
         const res = await fetch(`${API_BASE_URL}/prestadores/situaciones/afiliado/${idAfil}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
           credentials: 'include'
         })
         const json = await res.json().catch(() => ({}))

@@ -80,7 +80,7 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
   function isValidDate(value) {
     const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
     if (!match) return false
-    const [, mm, dd, yyyy] = match
+    const [, dd, mm, yyyy] = match
     const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
     return date.getFullYear() === Number(yyyy) &&
       date.getMonth() === Number(mm) - 1 &&
@@ -90,7 +90,7 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
   function validate() {
     const nextErrors = {}
     if (!afiliadoId) nextErrors.afiliado = 'Seleccioná un afiliado de la búsqueda.'
-    if (!isValidDate(fecha)) nextErrors.fecha = 'Ingresá una fecha válida con formato MM/DD/AAAA.'
+    if (!isValidDate(fecha)) nextErrors.fecha = 'Ingresá una fecha válida con formato DD/MM/AAAA.'
     if (toMinutes(horaFin) <= toMinutes(horaIni)) nextErrors.hora = 'La hora de fin debe ser posterior a la de inicio.'
     if (!motivo.trim()) nextErrors.motivo = 'Ingresá el motivo del turno.'
     else if (motivo.trim().length < 5) nextErrors.motivo = 'El motivo debe tener al menos 5 caracteres.'
@@ -367,8 +367,15 @@ function toKey(date) {
   return date.toISOString().slice(0, 10)
 }
 
-function formatDateMMDDYYYY(date) {
-  return `${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')}/${date.getFullYear()}`
+function formatDateDDMMYYYY(date) {
+  return `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`
+}
+
+function toISODateFromDDMMYYYY(value) {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value || '').trim())
+  if (!match) return value
+  const [, dd, mm, yyyy] = match
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
 }
 
 async function readJsonResponse(response, fallbackMessage) {
@@ -414,7 +421,7 @@ export default function Turnos() {
   ]
 
   const selectedKey = toKey(selectedDate)
-  const dayLabel = `${DAYS_LONG[selectedDate.getDay()]} ${formatDateMMDDYYYY(selectedDate)}`
+  const dayLabel = `${DAYS_LONG[selectedDate.getDay()]} ${formatDateDDMMYYYY(selectedDate)}`
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
 
@@ -453,7 +460,7 @@ export default function Turnos() {
       const res = await fetch(`${API_URL}/prestadores/turnos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevo),
+        body: JSON.stringify({ ...nuevo, fecha: toISODateFromDDMMYYYY(nuevo.fecha) }),
         credentials: 'include'
       })
       const json = await res.json().catch(() => ({}))
@@ -639,7 +646,7 @@ export default function Turnos() {
     {notaTurno && (
       <NotaModal
         turno={notaTurno}
-        fecha={`${DAYS_LONG[selectedDate.getDay()]} ${formatDateMMDDYYYY(selectedDate)}`}
+        fecha={`${DAYS_LONG[selectedDate.getDay()]} ${formatDateDDMMYYYY(selectedDate)}`}
         onClose={() => setNotaTurno(null)}
         onSave={handleAddNota}
       />
@@ -647,7 +654,7 @@ export default function Turnos() {
 
     {showNuevo && (
       <NuevoTurnoModal
-        fechaDefault={formatDateMMDDYYYY(selectedDate)}
+        fechaDefault={formatDateDDMMYYYY(selectedDate)}
         onClose={() => setShowNuevo(false)}
         onGuardar={handleGuardarTurno}
       />

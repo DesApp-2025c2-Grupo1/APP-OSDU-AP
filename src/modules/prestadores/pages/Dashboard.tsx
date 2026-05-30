@@ -11,8 +11,8 @@ function normalizeSlashDate(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value).trim())
   if (!match) return value
   const [, first, second, yyyy] = match
-  if (Number(first) > 12) return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
-  return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
+  if (Number(first) > 12) return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
+  return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
 }
 
 const defaultIcon = (
@@ -20,6 +20,42 @@ const defaultIcon = (
 )
 
 const PERIOD_OPTIONS = ['Este mes', 'Mes anterior', 'Últimos 3 meses']
+
+function getFullName(usuario) {
+  const parts = [usuario?.nombre, usuario?.apellido]
+    .map(part => String(part || '').trim())
+    .filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : 'Prestador'
+}
+
+function getDoctorTitle(usuario) {
+  const explicitGender = String(usuario?.genero || usuario?.sexo || '').trim().toLowerCase()
+  if (['f', 'femenino', 'mujer', 'female'].includes(explicitGender)) return 'Dra.'
+  if (['m', 'masculino', 'hombre', 'male'].includes(explicitGender)) return 'Dr.'
+
+  const firstName = String(usuario?.nombre || '').trim().split(/\s+/)[0] || ''
+  if (!firstName) return 'Dr/a.'
+
+  const normalized = firstName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  const femaleNames = new Set([
+    'ana', 'andrea', 'camila', 'carla', 'carolina', 'cecilia', 'daniela', 'elena',
+    'florencia', 'gabriela', 'jessica', 'julieta', 'laura', 'lucia', 'maria',
+    'mariana', 'paula', 'romina', 'sofia', 'valeria', 'veronica', 'victoria',
+  ])
+  const maleNames = new Set([
+    'alejandro', 'andres', 'carlos', 'daniel', 'diego', 'esteban', 'fernando',
+    'hector', 'hernan', 'javier', 'jorge', 'jose', 'juan', 'lucas', 'martin',
+    'matias', 'miguel', 'pablo', 'pedro', 'ricardo', 'roberto', 'santiago',
+  ])
+
+  if (femaleNames.has(normalized) || normalized.endsWith('a')) return 'Dra.'
+  if (maleNames.has(normalized) || normalized.endsWith('o')) return 'Dr.'
+  return 'Dr/a.'
+}
 
 function PeriodDropdown() {
   const [open, setOpen] = useState(false)
@@ -321,7 +357,8 @@ function NotificationsBell() {
 export default function Dashboard() {
   const { usuario } = useAuth()
   const navigate = useNavigate()
-  const nombre = usuario?.nombre ?? 'Prestador'
+  const nombreCompleto = getFullName(usuario)
+  const tituloProfesional = getDoctorTitle(usuario)
   const [data, setData] = useState<any>(null)
 
   useEffect(() => {
@@ -428,8 +465,8 @@ export default function Dashboard() {
       <div className="p-4 sm:p-8 space-y-6">
         <div className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between overflow-hidden relative">
           <div className="relative z-10">
-            <p className="text-teal-100 text-sm font-500 mb-1">Bienvenido de vuelta 👋</p>
-            <h2 className="text-white text-xl font-700">Bienvenido, {nombre}</h2>
+            <p className="text-teal-100 text-sm font-500 mb-1">Bienvenido/a al portal</p>
+            <h2 className="text-white text-xl font-700">Bienvenido/a, {tituloProfesional} {nombreCompleto}</h2>
             <p className="text-teal-100 text-sm mt-1">Tenés <span className="text-white font-600">{data.pendientes} solicitudes pendientes</span> y {data.observadas} observadas</p>
           </div>
           <div className="absolute right-0 top-0 w-64 h-64 bg-teal-400/30 rounded-full -translate-y-1/2 translate-x-1/2" />
