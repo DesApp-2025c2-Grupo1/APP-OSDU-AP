@@ -9,6 +9,8 @@ export interface UsuarioAuth {
   dni: string;
   email?: string;
   cuit?: string;
+  genero?: string;
+  sexo?: string;
   role?: string;
   tipo: "afiliado" | "prestador";
   debeCambiarPassword?: boolean;

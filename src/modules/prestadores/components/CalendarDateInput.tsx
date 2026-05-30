@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DAYS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
 
-function parseMMDDYYYY(value) {
+function parseDDMMYYYY(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value).trim())
   if (!match) return null
-  const [, mm, dd, yyyy] = match
+  const [, dd, mm, yyyy] = match
   const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
   return date.getFullYear() === Number(yyyy) &&
     date.getMonth() === Number(mm) - 1 &&
@@ -16,8 +16,8 @@ function parseMMDDYYYY(value) {
     : null
 }
 
-function formatMMDDYYYY(date) {
-  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`
+function formatDDMMYYYY(date) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
 }
 
 export default function CalendarDateInput({
@@ -25,20 +25,20 @@ export default function CalendarDateInput({
   onChange,
   onBlur,
   className = '',
-  placeholder = 'MM/DD/AAAA',
+  placeholder = 'DD/MM/AAAA',
 }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const anchorRef = useRef(null)
   const popoverRef = useRef(null)
-  const selectedDate = parseMMDDYYYY(value)
+  const selectedDate = parseDDMMYYYY(value)
   const baseDate = selectedDate ?? new Date()
   const [viewMonth, setViewMonth] = useState(baseDate.getMonth())
   const [viewYear, setViewYear] = useState(baseDate.getFullYear())
 
   useEffect(() => {
     if (!open) return
-    const selected = parseMMDDYYYY(value)
+    const selected = parseDDMMYYYY(value)
     if (selected) {
       setViewMonth(selected.getMonth())
       setViewYear(selected.getFullYear())
@@ -93,7 +93,7 @@ export default function CalendarDateInput({
   }
 
   function selectDay(day) {
-    onChange(formatMMDDYYYY(new Date(viewYear, viewMonth, day)))
+    onChange(formatDDMMYYYY(new Date(viewYear, viewMonth, day)))
     setOpen(false)
     onBlur?.()
   }
@@ -176,7 +176,7 @@ export default function CalendarDateInput({
               type="button"
               onClick={() => {
                 const today = new Date()
-                onChange(formatMMDDYYYY(today))
+                onChange(formatDDMMYYYY(today))
                 setOpen(false)
                 onBlur?.()
               }}

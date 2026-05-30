@@ -32,10 +32,10 @@ const ESTADOS   = ['Todos', 'Pendiente', 'En análisis', 'Observada', 'Aprobada'
 const TIPOS     = ['Todos', 'Reintegro', 'Autorización', 'Receta']
 const PAGE_SIZE = 10
 
-function isValidMMDDYYYY(value) {
+function isValidDDMMYYYY(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
   if (!match) return false
-  const [, mm, dd, yyyy] = match
+  const [, dd, mm, yyyy] = match
   const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
   return date.getFullYear() === Number(yyyy) &&
     date.getMonth() === Number(mm) - 1 &&
@@ -44,26 +44,26 @@ function isValidMMDDYYYY(value) {
 
 function toDateInputValue(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
-  if (!match || !isValidMMDDYYYY(value)) return ''
-  const [, mm, dd, yyyy] = match
+  if (!match || !isValidDDMMYYYY(value)) return ''
+  const [, dd, mm, yyyy] = match
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
 }
 
 function fromDateInputValue(value) {
   if (!value) return ''
   const [yyyy, mm, dd] = value.split('-')
-  return `${mm}/${dd}/${yyyy}`
+  return `${dd}/${mm}/${yyyy}`
 }
 
 function normalizeSlashDate(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value).trim())
   if (!match) return value
   const [, first, second, yyyy] = match
-  if (Number(first) > 12) return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
-  return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
+  if (Number(first) > 12) return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
+  return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
 }
 
-function DateTextPicker({ value, onChange, onBlur, className = '', placeholder = 'MM/DD/AAAA' }) {
+function DateTextPicker({ value, onChange, onBlur, className = '', placeholder = 'DD/MM/AAAA' }) {
   return (
     <CalendarDateInput
       value={value}
@@ -141,18 +141,18 @@ function FilterSelect({ label, value, options, onChange, getCount, className = '
 
 function NuevaSolicitudModal({ onClose, onCreate }) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
-  function formatDateMMDDYYYY(date) {
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
+  function formatDateDDMMYYYY(date) {
     const dd = String(date.getDate()).padStart(2, '0')
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
     const yyyy = date.getFullYear()
-    return `${mm}/${dd}/${yyyy}`
+    return `${dd}/${mm}/${yyyy}`
   }
 
   const [form, setForm] = useState({
     afiliado: '',
     afiliadoId: null,
     tipo: '',
-    fecha: formatDateMMDDYYYY(new Date()),
+    fecha: formatDateDDMMYYYY(new Date()),
     descripcion: '',
     archivo: '',
     adjunto: null,
@@ -180,9 +180,9 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
     if (!nextForm.tipo) nextErrors.tipo = 'Seleccioná el tipo de solicitud.'
 
     if (!fechaMatch) {
-      nextErrors.fecha = 'Usá el formato MM/DD/AAAA.'
+      nextErrors.fecha = 'Usá el formato DD/MM/AAAA.'
     } else {
-      const [, mm, dd, yyyy] = fechaMatch
+      const [, dd, mm, yyyy] = fechaMatch
       const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
       const validDate =
         date.getFullYear() === Number(yyyy) &&
@@ -500,10 +500,8 @@ export default function Solicitudes() {
   function dateCandidates(fecha) {
     const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(fecha)
     if (!match) return []
-    const [, first, second, yyyy] = match
-    const a = first.padStart(2, '0')
-    const b = second.padStart(2, '0')
-    return [`${yyyy}-${a}-${b}`, `${yyyy}-${b}-${a}`]
+    const [, dd, mm, yyyy] = match
+    return [`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`]
   }
 
   function filterDateValue(value) {
@@ -622,7 +620,7 @@ export default function Solicitudes() {
     const payload = {
       afiliadoId: form.afiliadoId,
       tipo: form.tipo || 'Reintegro',
-      fecha: form.fecha,
+      fecha: toDateInputValue(form.fecha) || form.fecha,
       descripcion: form.descripcion || '',
       adjunto: form.adjunto,
     }
