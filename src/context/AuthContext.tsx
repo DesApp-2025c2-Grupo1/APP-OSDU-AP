@@ -32,6 +32,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function mapSessionUser(user: any): UsuarioAuth {
+  const tipo = user.role === "PRESTADOR" ? "prestador" : "afiliado";
+  return {
+    id: String(user.id),
+    nombre: user.nombre || user.email?.split("@")[0] || (tipo === "prestador" ? "Prestador" : "Usuario"),
+    apellido: user.apellido || "",
+    dni: user.dni || "",
+    email: user.email,
+    cuit: user.cuit || "",
+    role: user.role,
+    tipo,
+    debeCambiarPassword: user.debeCambiarPassword,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioAuth | null>(() => {
     try {
@@ -57,18 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error("Sesión no permitida en este portal");
         }
 
-        const tipo = user.role === "PRESTADOR" ? "prestador" : "afiliado";
-        const usuarioModel: UsuarioAuth = {
-          id: String(user.id),
-          nombre: user.nombre || user.email?.split("@")[0] || (tipo === "prestador" ? "Prestador" : "Usuario"),
-          apellido: user.apellido || "",
-          dni: user.dni || "",
-          email: user.email,
-          cuit: user.cuit || "",
-          role: user.role,
-          tipo,
-          debeCambiarPassword: user.debeCambiarPassword,
-        };
+        const usuarioModel = mapSessionUser(user);
         setUsuario(usuarioModel);
         localStorage.setItem("auth_usuario", JSON.stringify(usuarioModel));
       })
@@ -93,33 +97,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       tipo: "afiliado" | "prestador"
     ): Promise<{ ok: boolean; mensaje?: string }> => {
       try {
-        const data = await api.login(email, password);
-        const { user } = data;
+        await api.login(email, password);
+        const { user } = await api.getSession();
 
         // Validar que el rol sea compatible con este portal
         if (user.role !== "AFILIADO") {
           throw new Error("Acceso denegado: solo afiliados pueden ingresar.");
         }
 
-        const usuarioModel: UsuarioAuth = {
-          id: String(user.id),
-          nombre: user.nombre || user.email?.split("@")[0] || "Usuario",
-          apellido: user.apellido || "",
-          dni: user.dni || "",
-          email: user.email,
-          cuit: user.cuit || "",
-          role: user.role,
-          tipo,
-          debeCambiarPassword: user.debeCambiarPassword,
-        };
+        const usuarioModel: UsuarioAuth = { ...mapSessionUser(user), tipo };
 
         setUsuario(usuarioModel);
         localStorage.setItem("auth_usuario", JSON.stringify(usuarioModel));
         return { ok: true };
       } catch (error: any) {
+        setUsuario(null);
+        localStorage.removeItem("auth_usuario");
         return {
           ok: false,
-          mensaje: error.message || `Email o contraseña incorrectos, o no autorizado como ${tipo}.`,
+          mensaje:
+            error.message === "No active session"
+              ? "No se pudo establecer la sesión. Revisá la configuración de cookies/proxy del servidor."
+              : error.message || `Email o contraseña incorrectos, o no autorizado como ${tipo}.`,
         };
       }
     },
@@ -129,28 +128,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginPrestador = useCallback(
     async (cuit: string, _password: string): Promise<{ ok: boolean; mensaje?: string }> => {
       try {
-        const data = await api.loginPrestador(cuit, _password);
-        const { user } = data;
+        await api.loginPrestador(cuit, _password);
+        const { user } = await api.getSession();
 
-        const usuarioModel: UsuarioAuth = {
-          id: String(user.id),
-          nombre: user.nombre || user.cuit || "Prestador",
-          apellido: user.apellido || "",
-          dni: user.dni || "",
-          email: user.email || "",
-          cuit: user.cuit,
-          role: user.role,
-          tipo: "prestador",
-          debeCambiarPassword: user.debeCambiarPassword,
-        };
+        const usuarioModel: UsuarioAuth = { ...mapSessionUser(user), tipo: "prestador" };
 
         setUsuario(usuarioModel);
         localStorage.setItem("auth_usuario", JSON.stringify(usuarioModel));
         return { ok: true };
       } catch {
+        setUsuario(null);
+        localStorage.removeItem("auth_usuario");
         return {
           ok: false,
-          mensaje: "CUIT o contraseña incorrectos.",
+          mensaje: "No se pudo establecer la sesión del prestador.",
         };
       }
     },
