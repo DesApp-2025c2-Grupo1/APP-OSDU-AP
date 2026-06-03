@@ -69,7 +69,7 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
     setSlotSeleccionado(null);
     turnosApi.getAgendas(especialidadId as number)
       .then(setAgendas)
-      .catch(() => setErrorMsg("No se pudieron cargar los profesionales."))
+      .catch((e: unknown) => setErrorMsg(e instanceof Error ? e.message : "No se pudieron cargar los profesionales."))
       .finally(() => setLoadingAgendas(false));
   }, [especialidadId]);
 
@@ -80,7 +80,7 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
     setSlotSeleccionado(null);
     turnosApi.getTurnosDisponibles(agendaId, fecha)
       .then(setSlots)
-      .catch(() => setErrorMsg("No se pudieron cargar los horarios."))
+      .catch((e: unknown) => setErrorMsg(e instanceof Error ? e.message : "No se pudieron cargar los horarios."))
       .finally(() => setLoadingSlots(false));
   }, [agendaId, fecha]);
 
