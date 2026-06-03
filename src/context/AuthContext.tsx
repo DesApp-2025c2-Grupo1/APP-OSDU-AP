@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { api } from "../services/api";
+import { api, AUTH_UNAUTHORIZED_EVENT } from "../services/api";
 
 export interface UsuarioAuth {
   id?: string;
@@ -88,6 +88,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUsuario(null);
+      localStorage.removeItem("auth_usuario");
+    };
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
   }, []);
 
   const login = useCallback(

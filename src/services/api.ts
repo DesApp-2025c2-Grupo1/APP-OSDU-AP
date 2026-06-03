@@ -1,14 +1,19 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:9002";
+export const AUTH_UNAUTHORIZED_EVENT = "auth:unauthorized";
 
 // Wrapper local de fetch para inyectar los roles válidos para este portal en los headers
-const customFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const headers = new Headers(init?.headers);
   headers.set("X-Session-Allowed-Roles", "AFILIADO,PRESTADOR");
-  return window.fetch(input, {
+  const response = await window.fetch(input, {
     ...init,
     credentials: init?.credentials ?? "include",
     headers,
   });
+  if (response.status === 401) {
+    window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+  }
+  return response;
 };
 const fetch = customFetch;
 
@@ -360,7 +365,12 @@ export const turnosApi = {
     const url = new URL(`${API_BASE_URL}/affiliates/turnos`);
     if (afiliadoId) url.searchParams.set("afiliadoId", afiliadoId);
     const response = await fetch(url.toString(), { credentials: "include" });
-    if (!response.ok) throw new Error("Error al obtener turnos");
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("La sesión venció. Iniciá sesión nuevamente.");
+      }
+      throw new Error("Error al obtener turnos");
+    }
     return response.json();
   },
 
