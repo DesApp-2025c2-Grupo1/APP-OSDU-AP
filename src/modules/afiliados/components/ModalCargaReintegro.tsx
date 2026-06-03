@@ -31,7 +31,6 @@ export function ModalCargaReintegro({ isOpen, onClose, activeProfile, onReintegr
   const [fechaPrestacion, setFechaPrestacion] = useState("");
   const [especialidad, setEspecialidad] = useState("");
   const [medicoInput, setMedicoInput] = useState("");
-  const [medicoId, setMedicoId] = useState<number | null>(null);
   const [lugarAtencion, setLugarAtencion] = useState("");
   const [facturaCuit, setFacturaCuit] = useState("");
   const [facturaValorStr, setFacturaValorStr] = useState("");
@@ -49,7 +48,7 @@ export function ModalCargaReintegro({ isOpen, onClose, activeProfile, onReintegr
   const medicoRef = useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
-    setFechaPrestacion(""); setEspecialidad(""); setMedicoInput(""); setMedicoId(null);
+    setFechaPrestacion(""); setEspecialidad(""); setMedicoInput("");
     setLugarAtencion(""); setFacturaCuit(""); setFacturaValorStr("");
     setFormaPago("Efectivo"); setCbu(""); setObservaciones(""); setErrorMsg(null);
     setModoManual(false);
@@ -81,7 +80,6 @@ export function ModalCargaReintegro({ isOpen, onClose, activeProfile, onReintegr
 
   function seleccionarPrestador(p: Prestador) {
     setMedicoInput(p.nombreCompleto);
-    setMedicoId(p.id);
     setShowSuggestions(false);
     if (p.cuit) setFacturaCuit(p.cuit);
     if (p.lugaresAtencion.length > 0) {
@@ -93,7 +91,6 @@ export function ModalCargaReintegro({ isOpen, onClose, activeProfile, onReintegr
   function toggleModoManual() {
     setModoManual(m => !m);
     setMedicoInput("");
-    setMedicoId(null);
     setLugarAtencion("");
     setFacturaCuit("");
     setEspecialidad("");
@@ -207,7 +204,7 @@ export function ModalCargaReintegro({ isOpen, onClose, activeProfile, onReintegr
               ) : (
                 <select
                   value={especialidad}
-                  onChange={(e) => { setEspecialidad(e.target.value); setMedicoInput(""); setMedicoId(null); setLugarAtencion(""); }}
+                  onChange={(e) => { setEspecialidad(e.target.value); setMedicoInput(""); setLugarAtencion(""); }}
                   className="w-full p-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-unahur outline-none bg-white"
                 >
                   <option value="" disabled>Seleccionar...</option>
@@ -265,7 +262,7 @@ export function ModalCargaReintegro({ isOpen, onClose, activeProfile, onReintegr
                   <input
                     type="text"
                     value={medicoInput}
-                    onChange={(e) => { setMedicoInput(e.target.value); setMedicoId(null); setShowSuggestions(true); }}
+                    onChange={(e) => { setMedicoInput(e.target.value); setShowSuggestions(true); }}
                     onFocus={() => setShowSuggestions(true)}
                     placeholder={especialidad ? "Buscar profesional..." : "Primero seleccioná una especialidad"}
                     disabled={!especialidad}
