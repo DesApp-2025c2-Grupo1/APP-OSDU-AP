@@ -1,5 +1,26 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:9002";
+const DEFAULT_API_BASE_URL =
+  import.meta.env.DEV ? "http://localhost:9002" : window.location.origin;
+
+const normalizeApiBaseUrl = (value?: string): string => {
+  const trimmed = value?.trim();
+  if (!trimmed) return DEFAULT_API_BASE_URL;
+
+  if (trimmed.startsWith("/")) {
+    return new URL(trimmed, window.location.origin).toString().replace(/\/$/, "");
+  }
+
+  try {
+    return new URL(trimmed).toString().replace(/\/$/, "");
+  } catch {
+    return DEFAULT_API_BASE_URL;
+  }
+};
+
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 export const AUTH_UNAUTHORIZED_EVENT = "auth:unauthorized";
+
+const apiUrl = (path: string): URL =>
+  new URL(path.replace(/^\//, ""), `${API_BASE_URL.replace(/\/$/, "")}/`);
 
 // Wrapper local de fetch para inyectar los roles válidos para este portal en los headers
 const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -214,7 +235,7 @@ export const cartillaApi = {
     page?: number;
     limit?: number;
   }): Promise<CartillaPrestadorAPI[]> => {
-    const url = new URL(`${API_BASE_URL}/prestadores/cartilla`);
+    const url = apiUrl("/prestadores/cartilla");
     if (params.especialidad) url.searchParams.set("especialidad", params.especialidad);
     if (params.localidad) url.searchParams.set("localidad", params.localidad);
     if (params.tipoPrestador) url.searchParams.set("tipoPrestador", params.tipoPrestador);
@@ -367,7 +388,7 @@ export const autorizacionesApi = {
 
 export const turnosApi = {
   getMisTurnos: async (afiliadoId?: string): Promise<TurnoAPI[]> => {
-    const url = new URL(`${API_BASE_URL}/affiliates/turnos`);
+    const url = apiUrl("/affiliates/turnos");
     if (afiliadoId) url.searchParams.set("afiliadoId", afiliadoId);
     const response = await fetch(url.toString(), { credentials: "include" });
     if (!response.ok) {
@@ -380,7 +401,7 @@ export const turnosApi = {
   },
 
   getTurnosDisponibles: async (agendaId: string, fecha: string): Promise<SlotDisponible[]> => {
-    const url = new URL(`${API_BASE_URL}/affiliates/turnos/disponibles`);
+    const url = apiUrl("/affiliates/turnos/disponibles");
     url.searchParams.set("agendaId", agendaId);
     url.searchParams.set("fecha", fecha);
     const response = await fetch(url.toString(), { credentials: "include" });
@@ -423,7 +444,7 @@ export const turnosApi = {
   },
 
   getAgendas: async (idEspecialidad?: number): Promise<AgendaAPI[]> => {
-    const url = new URL(`${API_BASE_URL}/agendas`);
+    const url = apiUrl("/agendas");
     if (idEspecialidad) url.searchParams.set("idEspecialidad", String(idEspecialidad));
     const response = await fetch(url.toString(), { credentials: "include" });
     if (!response.ok) {
@@ -554,7 +575,7 @@ export const api = {
   },
 
   getAffiliates: async (activo?: boolean) => {
-    const url = new URL(`${API_BASE_URL}/affiliates`);
+    const url = apiUrl("/affiliates");
     if (activo !== undefined) url.searchParams.append("status", activo.toString());
 
     const response = await fetch(url.toString(), {
