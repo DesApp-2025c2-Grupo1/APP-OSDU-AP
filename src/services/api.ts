@@ -114,6 +114,7 @@ export interface SlotDisponible {
 export interface ReintegroAPI {
   id: number;
   nro: string;
+  idIntegrante: string;
   fechaPrestacion: string;
   medico: string;
   especialidad: string;
@@ -142,6 +143,7 @@ export interface RecetaAPI {
 }
 
 export interface SubmitRecetaBody {
+  affiliateId?: string | number;
   medicamento: string;
   presentacion: string;
   cantidad: number;
@@ -154,26 +156,24 @@ export interface AutorizacionAPI {
   nro: string;
   idIntegrante: string;
   fechaPrevista: string;
+  subtipo: string | null;
   especialidad: string;
   medico: string;
   lugarPrestacion: string;
   diasInternacion: number;
   observaciones: string;
   estado: string;
+  estadoRaw: string;
   fechaEstado: string;
   mensajeObservacion: string | null;
-}
-
-export interface SubmitAutorizacionBody {
-  fechaPrevista: string;
-  especialidad: string;
-  medico: string;
-  lugarPrestacion: string;
-  diasInternacion: number;
-  observaciones?: string;
+  motivoEstado: string | null;
+  respuestaAfiliado: string | null;
+  adjuntoNombre: string | null;
+  adjuntoRuta: string | null;
 }
 
 export interface SubmitReintegroBody {
+  affiliateId?: string | number;
   fechaPrestacion: string;
   medico: string;
   especialidad: string;
@@ -306,11 +306,31 @@ export const autorizacionesApi = {
     return response.json();
   },
 
-  submitAutorizacion: async (body: SubmitAutorizacionBody): Promise<AutorizacionAPI> => {
+  submitAutorizacion: async (data: {
+    affiliateId?: string | number;
+    fechaPrevista: string;
+    subtipo: string;
+    especialidad: string;
+    medico: string;
+    lugarPrestacion: string;
+    diasInternacion?: number;
+    observaciones?: string;
+    orden?: File | null;
+  }): Promise<AutorizacionAPI> => {
+    const fd = new FormData();
+    if (data.affiliateId !== undefined) fd.append("affiliateId", String(data.affiliateId));
+    fd.append("fechaPrevista", data.fechaPrevista);
+    fd.append("subtipo", data.subtipo);
+    fd.append("especialidad", data.especialidad);
+    fd.append("medico", data.medico);
+    fd.append("lugarPrestacion", data.lugarPrestacion);
+    if (data.diasInternacion !== undefined) fd.append("diasInternacion", String(data.diasInternacion));
+    if (data.observaciones) fd.append("observaciones", data.observaciones);
+    if (data.orden) fd.append("orden", data.orden);
+
     const response = await fetch(`${API_BASE_URL}/affiliates/autorizaciones`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: fd,
       credentials: "include",
     });
     if (!response.ok) {

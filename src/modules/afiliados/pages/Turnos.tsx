@@ -135,33 +135,35 @@ export function Turnos() {
     <div className="animate-in fade-in duration-500">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/")}
-            className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <ArrowLeft size={16} className="text-gray-500" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-              Solicitar <span className="text-unahur font-black">Turnos</span>
-            </h1>
-            <p className="text-gray-500 text-sm">
-              Turnos de:{" "}
-              <span className="text-unahur font-bold">
-                {activeProfile.nombre} {activeProfile.apellido}
-              </span>
-            </p>
+      <div className="mb-5">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => navigate("/")}
+              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors flex-shrink-0"
+            >
+              <ArrowLeft size={16} className="text-gray-500" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-800 tracking-tight leading-tight">
+                Solicitar <span className="text-unahur font-black">Turnos</span>
+              </h1>
+              <p className="text-gray-500 text-xs truncate">
+                Turnos de:{" "}
+                <span className="text-unahur font-bold">
+                  {activeProfile.nombre} {activeProfile.apellido}
+                </span>
+              </p>
+            </div>
           </div>
-        </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-unahur hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-md transition-all active:scale-95 flex-shrink-0"
-        >
-          <Plus size={16} /> Reservar
-        </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-unahur hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-md transition-all active:scale-95 flex-shrink-0"
+          >
+            <Plus size={15} /> Reservar
+          </button>
+        </div>
       </div>
 
       {/* Filtros de estado */}

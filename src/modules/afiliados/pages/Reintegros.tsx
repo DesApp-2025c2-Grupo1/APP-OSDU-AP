@@ -40,11 +40,12 @@ export function Reintegros() {
   useEffect(() => { setPaginaActual(1); }, [filtro]);
 
   const obtenerDatosFiltrados = () => {
+    const delUsuario = listaReintegros.filter(r => String(r.idIntegrante) === String(activeProfile.id));
     const limiteSemanas = new Date();
     limiteSemanas.setDate(limiteSemanas.getDate() - 7);
     limiteSemanas.setHours(0, 0, 0, 0);
 
-    return listaReintegros.filter(r => {
+    return delUsuario.filter(r => {
       if (filtro === "PENDIENTE") return r.estado === "Recibido" || r.estado === "En análisis";
       if (filtro === "OBSERVADA") return r.estado === "Observado";
       const fechaDelTramite = new Date((r.fechaEstado || r.fechaPrestacion) + "T00:00:00");
@@ -79,30 +80,30 @@ export function Reintegros() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-start gap-3">
+    <div className="space-y-4 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate("/")}
-            className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mt-1 flex-shrink-0"
+            className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors flex-shrink-0"
           >
             <ArrowLeft size={16} className="text-gray-500" />
           </button>
-          <div>
-            <h1 className="text-3xl font-black text-gray-900 leading-tight">
+          <div className="min-w-0">
+            <h1 className="text-xl font-black text-gray-900 leading-tight">
               Gestión de <span className="text-unahur">Reintegros</span>
             </h1>
-            <p className="text-gray-400 mt-1 font-medium">
-              Historial de trámites de <span className="text-gray-900 font-bold">{activeProfile.nombre}</span>
+            <p className="text-gray-400 text-xs font-medium truncate">
+              Trámites de <span className="text-gray-900 font-bold">{activeProfile.nombre}</span>
             </p>
           </div>
         </div>
 
         <button
           onClick={() => setIsCargaModalOpen(true)}
-          className="bg-unahur hover:bg-unahur-dark text-white px-6 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-unahur/30 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
+          className="bg-unahur hover:bg-unahur-dark text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-unahur/30 transition-all active:scale-95 flex items-center gap-2 flex-shrink-0"
         >
-          <Plus size={20} /> Nueva Solicitud
+          <Plus size={16} /> Nueva Solicitud
         </button>
       </div>
 
@@ -125,68 +126,96 @@ export function Reintegros() {
           </span>
         </div>
 
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="min-h-[300px]">
           {loading ? (
-            <div className="flex items-center justify-center p-20 opacity-40">
+            <div className="flex items-center justify-center p-16 opacity-40">
               <p className="text-sm font-medium">Cargando reintegros...</p>
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center p-20 text-red-500 opacity-60">
+            <div className="flex items-center justify-center p-16 text-red-500 opacity-60">
               <p className="text-sm font-medium">{error}</p>
             </div>
+          ) : datosPaginados.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-16 text-gray-300">
+              <Calendar size={48} className="mb-3 opacity-20" />
+              <p className="text-sm font-black uppercase tracking-widest">Sin Solicitudes</p>
+            </div>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-gray-50 text-[10px] uppercase text-gray-400">
-                  <th className="px-8 py-5 font-black tracking-widest">Fecha / Lugar</th>
-                  <th className="px-8 py-5 font-black tracking-widest">Médico</th>
-                  <th className="px-8 py-5 font-black tracking-widest">Monto</th>
-                  <th className="px-8 py-5 font-black tracking-widest text-right">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {datosPaginados.length > 0 ? (
-                  datosPaginados.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
-                      <td className="px-8 py-6">
-                        <p className="text-sm font-black text-gray-900 group-hover:text-unahur transition-colors">{r.fechaPrestacion}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.lugarAtencion}</p>
-                      </td>
-                      <td className="px-8 py-6">
-                        <p className="text-sm font-black text-gray-900">{r.medico}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.especialidad}</p>
-                      </td>
-                      <td className="px-8 py-6">
-                        <p className="text-sm font-black text-green-600">${r.factura.valorTotal.toLocaleString()}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.formaPago}</p>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <button
-                          onClick={() => handleClicEstado(r)}
-                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm active:scale-95 ${
-                            r.estado === "Aprobado"  ? "bg-green-50 text-green-600 hover:bg-green-100" :
-                            r.estado === "Rechazado" ? "bg-red-50 text-red-600 hover:bg-red-100" :
-                            r.estado === "Observado" ? "bg-amber-50 text-amber-600 hover:bg-amber-100" :
-                            "bg-gray-50 text-gray-600 hover:bg-unahur hover:text-white"
-                          }`}
-                        >
-                          {r.estado}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="p-20 text-center">
-                      <div className="flex flex-col items-center justify-center text-gray-300">
-                        <Calendar size={64} className="mb-4 opacity-20" />
-                        <p className="text-lg font-black uppercase tracking-widest text-gray-300">Sin Solicitudes</p>
+            <>
+              {/* Cards — mobile */}
+              <div className="md:hidden divide-y divide-gray-50">
+                {datosPaginados.map((r) => (
+                  <div key={r.id} className="p-4 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-gray-900 truncate">{r.medico}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{r.especialidad}</p>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      <button
+                        onClick={() => handleClicEstado(r)}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase flex-shrink-0 ${
+                          r.estado === "Aprobado"  ? "bg-green-50 text-green-600" :
+                          r.estado === "Rechazado" ? "bg-red-50 text-red-600" :
+                          r.estado === "Observado" ? "bg-amber-50 text-amber-600" :
+                          "bg-gray-50 text-gray-600"
+                        }`}
+                      >
+                        {r.estado}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+                      <span>{r.fechaPrestacion} · <span className="truncate">{r.lugarAtencion}</span></span>
+                      <span className="font-black text-green-600 flex-shrink-0">${r.factura.valorTotal.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tabla — desktop */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-50 text-[10px] uppercase text-gray-400">
+                      <th className="px-6 py-4 font-black tracking-widest">Fecha / Lugar</th>
+                      <th className="px-6 py-4 font-black tracking-widest">Médico</th>
+                      <th className="px-6 py-4 font-black tracking-widest">Monto</th>
+                      <th className="px-6 py-4 font-black tracking-widest text-right">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {datosPaginados.map((r) => (
+                      <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-5">
+                          <p className="text-sm font-black text-gray-900 group-hover:text-unahur transition-colors">{r.fechaPrestacion}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.lugarAtencion}</p>
+                        </td>
+                        <td className="px-6 py-5">
+                          <p className="text-sm font-black text-gray-900">{r.medico}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.especialidad}</p>
+                        </td>
+                        <td className="px-6 py-5">
+                          <p className="text-sm font-black text-green-600">${r.factura.valorTotal.toLocaleString()}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">{r.formaPago}</p>
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          <button
+                            onClick={() => handleClicEstado(r)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-sm active:scale-95 ${
+                              r.estado === "Aprobado"  ? "bg-green-50 text-green-600 hover:bg-green-100" :
+                              r.estado === "Rechazado" ? "bg-red-50 text-red-600 hover:bg-red-100" :
+                              r.estado === "Observado" ? "bg-amber-50 text-amber-600 hover:bg-amber-100" :
+                              "bg-gray-50 text-gray-600 hover:bg-unahur hover:text-white"
+                            }`}
+                          >
+                            {r.estado}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
