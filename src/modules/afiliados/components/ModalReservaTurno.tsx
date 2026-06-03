@@ -85,7 +85,7 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
   }, [agendaId, fecha]);
 
   const agendaSeleccionada = agendas.find((a) => a.id === agendaId) ?? null;
-  const puedeConfirmar = especialidadId && agendaId && fecha && slotSeleccionado && motivo.trim();
+  const puedeConfirmar = especialidadId && agendaId && fecha && slotSeleccionado;
 
   const handleConfirmar = async () => {
     if (!puedeConfirmar || !slotSeleccionado) return;
@@ -223,7 +223,7 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
 
           {/* Motivo */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Motivo de la consulta</label>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Motivo de la consulta <span className="normal-case font-normal">(opcional)</span></label>
             <input
               type="text"
               placeholder="Ej: Control anual, dolor de cabeza..."

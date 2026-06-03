@@ -141,283 +141,326 @@ function FilterSelect({ label, value, options, onChange, getCount, className = '
 
 function NuevaSolicitudModal({ onClose, onCreate }) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
-  function formatDateDDMMYYYY(date) {
-    const dd = String(date.getDate()).padStart(2, '0')
-    const mm = String(date.getMonth() + 1).padStart(2, '0')
-    const yyyy = date.getFullYear()
-    return `${dd}/${mm}/${yyyy}`
-  }
+  const today = new Date().toISOString().slice(0, 10)
 
   const [form, setForm] = useState({
-    afiliado: '',
-    afiliadoId: null,
-    tipo: '',
-    fecha: formatDateDDMMYYYY(new Date()),
-    descripcion: '',
-    archivo: '',
-    adjunto: null,
+    afiliado: '', afiliadoId: null, tipo: '', fecha: today,
+    // Receta
+    medicamento: '', presentacion: '', cantidad: '', fechaEmision: today,
+    // Autorización
+    especialidad: '', medico: '', lugarAtencion: '', fechaPrevista: '', diasInternacion: '',
+    // Reintegro
+    facturaCuit: '', facturaValor: '', formaPago: 'Efectivo', cbu: '',
+    // Común
+    descripcion: '', archivo: '', adjunto: null,
   })
   const [errors, setErrors] = useState({})
-  const [touched, setTouched] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [afiliados, setAfiliados] = useState([])
 
-  const fieldClass = (field) =>
-    `w-full text-sm border rounded-xl outline-none transition-colors ${
-      errors[field] && touched[field]
-        ? 'border-rose-300 focus:ring-2 focus:ring-rose-400'
-        : 'border-slate-200 focus:ring-2 focus:ring-teal-500'
+  const fc = (field) =>
+    `w-full text-sm border rounded-xl outline-none transition-colors px-3 py-2.5 ${
+      errors[field] ? 'border-rose-300 focus:ring-2 focus:ring-rose-400' : 'border-slate-200 focus:ring-2 focus:ring-teal-500'
     }`
 
-  function validate(nextForm = form) {
-    const nextErrors = {}
-    const afiliado = nextForm.afiliado.trim()
-    const descripcion = nextForm.descripcion.trim()
-    const fechaMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(nextForm.fecha.trim())
-
-    if (!nextForm.afiliadoId) nextErrors.afiliado = 'Seleccioná un afiliado de la búsqueda.'
-
-    if (!nextForm.tipo) nextErrors.tipo = 'Seleccioná el tipo de solicitud.'
-
-    if (!fechaMatch) {
-      nextErrors.fecha = 'Usá el formato DD/MM/AAAA.'
-    } else {
-      const [, dd, mm, yyyy] = fechaMatch
-      const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
-      const validDate =
-        date.getFullYear() === Number(yyyy) &&
-        date.getMonth() === Number(mm) - 1 &&
-        date.getDate() === Number(dd)
-      if (!validDate) nextErrors.fecha = 'Ingresá una fecha válida.'
-    }
-
-    if (!descripcion) nextErrors.descripcion = 'Ingresá una descripción.'
-    else if (descripcion.length < 10) nextErrors.descripcion = 'La descripción debe tener al menos 10 caracteres.'
-
-    setErrors(nextErrors)
-    return nextErrors
-  }
-
-  function update(key, value) {
+  function set(key, value) {
     setSubmitError('')
-    setForm(prev => {
-      const next = { ...prev, [key]: value }
-      if (touched[key]) validate(next)
-      return next
-    })
+    setForm(prev => ({ ...prev, [key]: value }))
+    if (errors[key]) setErrors(prev => { const e = { ...prev }; delete e[key]; return e })
   }
 
   async function buscarAfiliados(value) {
-    update('afiliado', value)
-    update('afiliadoId', null)
-    if (value.trim().length < 2) {
-      setAfiliados([])
-      return
-    }
+    set('afiliado', value); set('afiliadoId', null)
+    if (value.trim().length < 2) { setAfiliados([]); return }
+    try {
+      const res = await fetch(`${API_URL}/prestadores/afiliados/search?q=${encodeURIComponent(value.trim())}`, { credentials: 'include' })
+      setAfiliados(Array.isArray(await res.json()) ? await res.clone().json() : [])
+    } catch { setAfiliados([]) }
+  }
+
+  // Fix: use proper async fetch
+  const [afiliadoSearch, setAfiliadoSearch] = useState('')
+  async function onAfiliadoInput(value) {
+    setAfiliadoSearch(value)
+    set('afiliado', value); set('afiliadoId', null)
+    if (value.trim().length < 2) { setAfiliados([]); return }
     try {
       const res = await fetch(`${API_URL}/prestadores/afiliados/search?q=${encodeURIComponent(value.trim())}`, { credentials: 'include' })
       const data = await res.json()
       setAfiliados(Array.isArray(data) ? data : [])
-    } catch {
-      setAfiliados([])
-    }
+    } catch { setAfiliados([]) }
   }
 
-  function seleccionarAfiliado(afiliado) {
+  function seleccionarAfiliado(a) {
     setAfiliados([])
-    setForm(prev => ({ ...prev, afiliado: afiliado.nombre, afiliadoId: afiliado.id }))
-    setErrors(prev => {
-      const { afiliado: _afiliado, ...rest } = prev
-      return rest
-    })
-  }
-
-  function markTouched(key) {
-    setTouched(prev => ({ ...prev, [key]: true }))
-    validate()
+    setAfiliadoSearch(a.nombre)
+    setForm(prev => ({ ...prev, afiliado: a.nombre, afiliadoId: a.id }))
+    setErrors(prev => { const e = { ...prev }; delete e.afiliado; return e })
   }
 
   function handleFile(file) {
-    setSubmitError('')
-    setTouched(prev => ({ ...prev, archivo: true }))
-    if (!file) {
-      setForm(prev => ({ ...prev, archivo: '', adjunto: null }))
-      return
+    if (!file) { setForm(prev => ({ ...prev, archivo: '', adjunto: null })); return }
+    const ok = ['application/pdf','image/jpeg','image/png'].includes(file.type) || /\.(pdf|jpe?g|png)$/i.test(file.name)
+    if (!ok || file.size > 10*1024*1024) { setErrors(prev => ({ ...prev, archivo: 'PDF, JPG o PNG. Máx 10MB.' })); return }
+    setErrors(prev => { const e = { ...prev }; delete e.archivo; return e })
+    setForm(prev => ({ ...prev, archivo: file.name, adjunto: { nombre: file.name, tipo: file.type || 'application/octet-stream', tamanio: file.size } }))
+  }
+
+  function formatCuit(raw) {
+    const d = raw.replace(/\D/g, '').slice(0, 11)
+    if (d.length <= 2) return d
+    if (d.length <= 10) return `${d.slice(0,2)}-${d.slice(2)}`
+    return `${d.slice(0,2)}-${d.slice(2,10)}-${d.slice(10)}`
+  }
+
+  function validate() {
+    const e = {}
+    if (!form.afiliadoId) e.afiliado = 'Seleccioná un afiliado.'
+    if (!form.tipo) e.tipo = 'Seleccioná el tipo.'
+    if (!form.fecha) e.fecha = 'La fecha es requerida.'
+    if (form.tipo === 'Receta') {
+      if (!form.medicamento.trim()) e.medicamento = 'Requerido.'
+      if (!form.cantidad || Number(form.cantidad) <= 0) e.cantidad = 'Debe ser mayor a 0.'
     }
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png']
-    const validExtensions = /\.(pdf|jpe?g|png)$/i.test(file.name)
-    if ((!validTypes.includes(file.type) && !validExtensions) || file.size > 10 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, archivo: 'El archivo debe ser PDF, JPG o PNG y pesar hasta 10MB.' }))
-      setForm(prev => ({ ...prev, archivo: '', adjunto: null }))
-      return
+    if (form.tipo === 'Autorizacion') {
+      if (!form.especialidad.trim()) e.especialidad = 'Requerida.'
+      if (!form.medico.trim()) e.medico = 'Requerido.'
     }
-    setErrors(prev => {
-      const { archivo, ...rest } = prev
-      return rest
-    })
-    setForm(prev => ({
-      ...prev,
-      archivo: file.name,
-      adjunto: {
-        nombre: file.name,
-        tipo: file.type || 'application/octet-stream',
-        tamanio: file.size,
-      },
-    }))
+    if (form.tipo === 'Reintegro') {
+      if (!form.descripcion.trim() || form.descripcion.trim().length < 5) e.descripcion = 'Ingresá una descripción.'
+    }
+    setErrors(e)
+    return e
   }
 
   function crear() {
-    const nextErrors = validate()
-    setTouched({ afiliado: true, tipo: true, fecha: true, descripcion: true, archivo: true })
-    if (Object.keys(nextErrors).length > 0) {
-      setSubmitError('Revisá los campos marcados antes de crear la solicitud.')
-      return
-    }
+    const e = validate()
+    if (Object.keys(e).length > 0) { setSubmitError('Revisá los campos marcados.'); return }
     onCreate(form)
     onClose()
   }
 
+  const inputBase = 'w-full text-sm border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 px-3 py-2.5'
+  const labelBase = 'block text-xs font-600 text-slate-600 mb-1.5'
+  const errClass = (f) => errors[f] ? 'border-rose-300' : ''
+
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6"
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="w-full max-w-5xl max-h-[92vh] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col"
-      >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-100 flex-shrink-0">
+    <div onClick={onClose} className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6">
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl max-h-[92vh] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-700 text-slate-800">Nueva solicitud</h2>
+            <h2 className="text-base font-700 text-slate-800">Nueva solicitud</h2>
             <p className="text-xs text-slate-400 mt-0.5">Completá los datos para crear una solicitud</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            aria-label="Cerrar"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <button type="button" onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
-        <div className="px-4 sm:px-6 py-5 space-y-6 overflow-y-auto overscroll-contain min-h-0">
-          {submitError && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-500 text-rose-600">
-              {submitError}
+        <div className="px-5 py-4 space-y-4 overflow-y-auto overscroll-contain min-h-0">
+          {submitError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-500 text-rose-600">{submitError}</div>}
+
+          {/* Afiliado + Tipo + Fecha */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-1">
+              <label className={labelBase}>Afiliado</label>
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input value={afiliadoSearch} onChange={e => onAfiliadoInput(e.target.value)} placeholder="Buscar por nombre..." className={`${inputBase} pl-9 ${errClass('afiliado')}`} />
+              </div>
+              {afiliados.length > 0 && (
+                <div className="mt-1 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm z-10 relative">
+                  {afiliados.map(a => (
+                    <button type="button" key={a.id} onMouseDown={e => { e.preventDefault(); seleccionarAfiliado(a) }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50">
+                      <span className="font-600 text-slate-700">{a.nombre}</span>
+                      <span className="text-xs text-slate-400">{a.nro}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {errors.afiliado && <p className="text-xs text-rose-500 mt-1">{errors.afiliado}</p>}
+            </div>
+
+            <div>
+              <label className={labelBase}>Tipo de solicitud</label>
+              <Dropdown value={form.tipo} options={['Reintegro', 'Autorización', 'Receta']}
+                onChange={value => { set('tipo', value === 'Autorización' ? 'Autorizacion' : value) }}
+                placeholder="Seleccionar tipo"
+                buttonClassName={`py-2.5 ${errors.tipo ? 'border-rose-300' : ''}`}
+                maxMenuHeight="max-h-56" />
+              {errors.tipo && <p className="text-xs text-rose-500 mt-1">{errors.tipo}</p>}
+            </div>
+
+            <div>
+              <label className={labelBase}>Fecha de solicitud</label>
+              <input type="date" value={form.fecha} onChange={e => set('fecha', e.target.value)}
+                className={`${inputBase} ${errClass('fecha')}`} />
+              {errors.fecha && <p className="text-xs text-rose-500 mt-1">{errors.fecha}</p>}
+            </div>
+          </div>
+
+          {/* Sin tipo seleccionado */}
+          {!form.tipo && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
+              <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 18a6 6 0 100-12 6 6 0 000 12z" /></svg>
+              Seleccioná un tipo de solicitud para ver los campos correspondientes.
             </div>
           )}
 
-          <section>
-            <h3 className="text-sm font-700 text-slate-800 mb-4">Datos básicos</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-600 text-slate-600 mb-1.5">Afiliado</label>
-                <div className="relative">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input
-                    value={form.afiliado}
-                    onChange={e => buscarAfiliados(e.target.value)}
-                    onBlur={() => markTouched('afiliado')}
-                    placeholder="Buscar afiliado por nombre o nro..."
-                    className={`${fieldClass('afiliado')} pl-9 pr-3 py-2.5`}
-                  />
+          {/* ── RECETA ── */}
+          {form.tipo === 'Receta' && (
+            <div className="space-y-3 pt-1 border-t border-slate-100">
+              <p className="text-xs font-700 text-slate-500 uppercase tracking-wider pt-1">Datos de la receta</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelBase}>Medicamento *</label>
+                  <input value={form.medicamento} onChange={e => set('medicamento', e.target.value)}
+                    placeholder="Ej: Ibuprofeno 400mg" className={`${inputBase} ${errClass('medicamento')}`} />
+                  {errors.medicamento && <p className="text-xs text-rose-500 mt-1">{errors.medicamento}</p>}
                 </div>
-                {afiliados.length > 0 && (
-                  <div className="mt-2 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-                    {afiliados.map(afiliado => (
-                      <button
-                        type="button"
-                        key={afiliado.id}
-                        onMouseDown={event => {
-                          event.preventDefault()
-                          seleccionarAfiliado(afiliado)
-                        }}
-                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
-                      >
-                        <span>
-                          <span className="font-700 text-slate-700">{afiliado.nombre}</span>
-                          <span className="ml-2 text-xs text-slate-400">{afiliado.nro}</span>
-                        </span>
-                      </button>
-                    ))}
+                <div>
+                  <label className={labelBase}>Presentación</label>
+                  <input value={form.presentacion} onChange={e => set('presentacion', e.target.value)}
+                    placeholder="Ej: Comprimidos x20" className={inputBase} />
+                </div>
+                <div>
+                  <label className={labelBase}>Cantidad *</label>
+                  <input type="number" min="1" value={form.cantidad} onChange={e => set('cantidad', e.target.value)}
+                    placeholder="1" className={`${inputBase} ${errClass('cantidad')}`} />
+                  {errors.cantidad && <p className="text-xs text-rose-500 mt-1">{errors.cantidad}</p>}
+                </div>
+                <div>
+                  <label className={labelBase}>Fecha de emisión</label>
+                  <input type="date" value={form.fechaEmision} onChange={e => set('fechaEmision', e.target.value)} className={inputBase} />
+                </div>
+              </div>
+              <div>
+                <label className={labelBase}>Observaciones <span className="font-400 text-slate-400">(opcional)</span></label>
+                <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)} rows={2}
+                  placeholder="Indicaciones adicionales..." className={`${inputBase} resize-none`} />
+              </div>
+            </div>
+          )}
+
+          {/* ── AUTORIZACIÓN ── */}
+          {form.tipo === 'Autorizacion' && (
+            <div className="space-y-3 pt-1 border-t border-slate-100">
+              <p className="text-xs font-700 text-slate-500 uppercase tracking-wider pt-1">Datos de la autorización</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelBase}>Especialidad *</label>
+                  <input value={form.especialidad} onChange={e => set('especialidad', e.target.value)}
+                    placeholder="Ej: Cardiología" className={`${inputBase} ${errClass('especialidad')}`} />
+                  {errors.especialidad && <p className="text-xs text-rose-500 mt-1">{errors.especialidad}</p>}
+                </div>
+                <div>
+                  <label className={labelBase}>Médico solicitante *</label>
+                  <input value={form.medico} onChange={e => set('medico', e.target.value)}
+                    placeholder="Ej: Dr. García" className={`${inputBase} ${errClass('medico')}`} />
+                  {errors.medico && <p className="text-xs text-rose-500 mt-1">{errors.medico}</p>}
+                </div>
+                <div>
+                  <label className={labelBase}>Lugar de realización</label>
+                  <input value={form.lugarAtencion} onChange={e => set('lugarAtencion', e.target.value)}
+                    placeholder="Ej: Clínica Central" className={inputBase} />
+                </div>
+                <div>
+                  <label className={labelBase}>Fecha prevista</label>
+                  <input type="date" value={form.fechaPrevista} onChange={e => set('fechaPrevista', e.target.value)} className={inputBase} />
+                </div>
+                <div>
+                  <label className={labelBase}>Días de internación <span className="font-400 text-slate-400">(si aplica)</span></label>
+                  <input type="number" min="0" value={form.diasInternacion} onChange={e => set('diasInternacion', e.target.value)}
+                    placeholder="0" className={inputBase} />
+                </div>
+              </div>
+              <div>
+                <label className={labelBase}>Observaciones <span className="font-400 text-slate-400">(opcional)</span></label>
+                <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)} rows={2}
+                  placeholder="Información adicional..." className={`${inputBase} resize-none`} />
+              </div>
+            </div>
+          )}
+
+          {/* ── REINTEGRO ── */}
+          {form.tipo === 'Reintegro' && (
+            <div className="space-y-3 pt-1 border-t border-slate-100">
+              <p className="text-xs font-700 text-slate-500 uppercase tracking-wider pt-1">Datos del reintegro</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelBase}>Médico / Profesional</label>
+                  <input value={form.medico} onChange={e => set('medico', e.target.value)}
+                    placeholder="Ej: Dr. García" className={inputBase} />
+                </div>
+                <div>
+                  <label className={labelBase}>Especialidad</label>
+                  <input value={form.especialidad} onChange={e => set('especialidad', e.target.value)}
+                    placeholder="Ej: Clínica Médica" className={inputBase} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelBase}>Lugar de atención</label>
+                  <input value={form.lugarAtencion} onChange={e => set('lugarAtencion', e.target.value)}
+                    placeholder="Ej: Clínica Central, Hurlingham" className={inputBase} />
+                </div>
+                <div>
+                  <label className={labelBase}>CUIT Emisor</label>
+                  <input value={form.facturaCuit} onChange={e => set('facturaCuit', formatCuit(e.target.value))}
+                    placeholder="20-12345678-9" maxLength={13} className={inputBase} />
+                </div>
+                <div>
+                  <label className={labelBase}>Valor Total ($)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-slate-400 text-sm">$</span>
+                    <input value={form.facturaValor} onChange={e => set('facturaValor', e.target.value.replace(/[^0-9.,]/g,''))}
+                      placeholder="0,00" className={`${inputBase} pl-7`} />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelBase}>Forma de pago</label>
+                  <select value={form.formaPago} onChange={e => set('formaPago', e.target.value)}
+                    className={`${inputBase} bg-white`}>
+                    <option>Efectivo</option>
+                    <option>Cheque</option>
+                    <option value="Transferencia">Transferencia Bancaria</option>
+                  </select>
+                </div>
+                {form.formaPago === 'Transferencia' && (
+                  <div>
+                    <label className={labelBase}>CBU / CVU</label>
+                    <input value={form.cbu} onChange={e => set('cbu', e.target.value.replace(/\D/g,'').slice(0,22))}
+                      maxLength={22} placeholder="22 dígitos" className={inputBase} />
                   </div>
                 )}
-                {errors.afiliado && touched.afiliado && <p className="text-xs text-rose-500 mt-1.5">{errors.afiliado}</p>}
               </div>
               <div>
-                <label className="block text-xs font-600 text-slate-600 mb-1.5">Tipo de solicitud</label>
-                <Dropdown
-                  value={form.tipo}
-                  options={['Reintegro', 'Autorización', 'Receta']}
-                  onChange={value => update('tipo', value)}
-                  placeholder="Seleccionar tipo"
-                  buttonClassName={`py-2.5 ${errors.tipo && touched.tipo ? 'border-rose-300 ring-0' : ''}`}
-                  maxMenuHeight="max-h-56"
-                />
-                {errors.tipo && touched.tipo && <p className="text-xs text-rose-500 mt-1.5">{errors.tipo}</p>}
-              </div>
-              <div>
-                <label className="block text-xs font-600 text-slate-600 mb-1.5">Fecha de solicitud</label>
-                <DateTextPicker
-                  value={form.fecha}
-                  onChange={value => update('fecha', value)}
-                  onBlur={() => markTouched('fecha')}
-                  className={`${fieldClass('fecha')} px-3 py-2.5`}
-                />
-                {errors.fecha && touched.fecha && <p className="text-xs text-rose-500 mt-1.5">{errors.fecha}</p>}
+                <label className={labelBase}>Descripción *</label>
+                <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)} rows={2}
+                  placeholder="Detallá el motivo del reintegro..." className={`${inputBase} resize-none ${errClass('descripcion')}`} />
+                {errors.descripcion && <p className="text-xs text-rose-500 mt-1">{errors.descripcion}</p>}
               </div>
             </div>
-          </section>
+          )}
 
-          <section>
-            <h3 className="text-sm font-700 text-slate-800 mb-4">Detalle</h3>
-            <label className="block text-xs font-600 text-slate-600 mb-1.5">Descripción de la solicitud</label>
-            <textarea
-              value={form.descripcion}
-              onChange={e => update('descripcion', e.target.value)}
-              onBlur={() => markTouched('descripcion')}
-              rows={5}
-              placeholder="Ingrese una descripción detallada de la solicitud..."
-              className={`${fieldClass('descripcion')} px-3 py-2.5 resize-none`}
-            />
-            {errors.descripcion && touched.descripcion && <p className="text-xs text-rose-500 mt-1.5">{errors.descripcion}</p>}
-          </section>
-
-          <section className="pt-5 border-t border-slate-100">
-            <h3 className="text-sm font-700 text-slate-800 mb-1">Adjuntos</h3>
-            <p className="text-xs text-slate-400 mb-3">Adjuntá la documentación relacionada con la solicitud.</p>
-            <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-600 text-teal-700 bg-white border border-teal-200 rounded-xl hover:bg-teal-50 cursor-pointer transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 10-5.657-5.657L5.757 10.757a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
-              Subir archivo
-              <input type="file" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
-            </label>
-            <p className="text-xs text-slate-400 mt-2">
-              {form.archivo || 'Formatos permitidos: PDF, JPG, PNG. Tamaño máximo 10MB.'}
-            </p>
-            {errors.archivo && touched.archivo && <p className="text-xs text-rose-500 mt-1.5">{errors.archivo}</p>}
-          </section>
-
-          <section className="pt-5 border-t border-slate-100">
-            <h3 className="text-sm font-700 text-slate-800 mb-1">Información adicional</h3>
-            <p className="text-xs text-slate-400 mb-3">Los campos pueden variar según el tipo de solicitud seleccionado.</p>
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
-              <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 18a6 6 0 100-12 6 6 0 000 12z" />
-              </svg>
-              Seleccioná un tipo de solicitud para ver los campos adicionales correspondientes.
+          {/* Adjunto — siempre visible si hay tipo */}
+          {form.tipo && (
+            <div className="pt-2 border-t border-slate-100">
+              <label className="inline-flex items-center gap-2 px-4 py-2 text-sm font-600 text-teal-700 bg-white border border-teal-200 rounded-xl hover:bg-teal-50 cursor-pointer transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 10-5.657-5.657L5.757 10.757a6 6 0 108.486 8.486L20.5 13" /></svg>
+                Adjuntar archivo <span className="font-400 text-slate-400 text-xs">(opcional)</span>
+                <input type="file" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
+              </label>
+              {form.archivo && <p className="text-xs text-teal-600 mt-1.5">📎 {form.archivo}</p>}
+              {errors.archivo && <p className="text-xs text-rose-500 mt-1">{errors.archivo}</p>}
             </div>
-          </section>
+          )}
         </div>
 
-        <div className="flex items-center justify-end px-4 sm:px-6 py-4 border-t border-slate-100 bg-white flex-shrink-0">
-          <button onClick={crear} className="px-8 py-2.5 text-sm font-700 text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors">
+        <div className="flex items-center justify-end px-5 py-3 border-t border-slate-100 bg-white flex-shrink-0 gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">Cancelar</button>
+          <button onClick={crear} className="px-6 py-2.5 text-sm font-700 text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors">
             Crear solicitud
           </button>
         </div>
@@ -449,14 +492,21 @@ export default function Solicitudes() {
 
   useEffect(() => {
     setError('')
-    fetch(`${API_URL}/prestadores/solicitudes`, { credentials: 'include' })
-      .then(async res => {
-        const json = await res.json()
-        if (!res.ok) throw new Error(json.message || 'No se pudieron cargar las solicitudes')
-        return json
-      })
-      .then(d => {
-        setData(d.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha) })))
+    Promise.all([
+      fetch(`${API_URL}/prestadores/solicitudes`, { credentials: 'include' })
+        .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.message); return j; }),
+      fetch(`${API_URL}/prestadores/autorizaciones/afiliados`, { credentials: 'include' })
+        .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.message); return j; }),
+      fetch(`${API_URL}/prestadores/recetas/afiliados`, { credentials: 'include' })
+        .then(async res => { const j = await res.json(); if (!res.ok) throw new Error(j.message); return j; }),
+    ])
+      .then(([solicitudes, autorizaciones, recetas]) => {
+        const todas = [
+          ...solicitudes.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha) })),
+          ...autorizaciones.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha), origen: 'afiliado' })),
+          ...recetas.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha), origen: 'afiliado' })),
+        ]
+        setData(todas)
         setLoading(false)
       })
       .catch(e => {
@@ -509,10 +559,17 @@ export default function Solicitudes() {
     return toDateInputValue(value) || value
   }
 
-  async function cambiarEstado(id, nuevoEstado, motivo = '') {
+  async function cambiarEstado(id, nuevoEstado, motivo = '', origen = '') {
     try {
       setError('')
-      const res = await fetch(`${API_URL}/prestadores/solicitudes/${id}/estado`, {
+      const solActual = data.find(s => s.id === id)
+      let url = `${API_URL}/prestadores/solicitudes/${id}/estado`
+      if (origen === 'afiliado') {
+        url = solActual?.tipo === 'Receta'
+          ? `${API_URL}/prestadores/recetas/${id}/estado`
+          : `${API_URL}/prestadores/autorizaciones/${id}/estado`
+      }
+      const res = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: nuevoEstado, motivo }),
@@ -534,8 +591,7 @@ export default function Solicitudes() {
       <DetalleSolicitud
         solicitud={solActualizada}
         onVolver={() => setDetalle(null)}
-        onCambiarEstado={cambiarEstado}
-        
+        onCambiarEstado={(id, estado, motivo) => cambiarEstado(id, estado, motivo, solActualizada.origen)}
       />
     )
   }
@@ -617,12 +673,16 @@ export default function Solicitudes() {
   }
 
   async function crearSolicitud(form) {
-    const payload = {
-      afiliadoId: form.afiliadoId,
-      tipo: form.tipo || 'Reintegro',
-      fecha: toDateInputValue(form.fecha) || form.fecha,
-      descripcion: form.descripcion || '',
-      adjunto: form.adjunto,
+    const fechaISO = form.fecha || new Date().toISOString().slice(0, 10)
+    const base = { afiliadoId: form.afiliadoId, tipo: form.tipo, fecha: fechaISO, descripcion: form.descripcion || '', adjunto: form.adjunto }
+
+    let payload = base
+    if (form.tipo === 'Receta') {
+      payload = { ...base, medicamento: form.medicamento, presentacion: form.presentacion, cantidad: Number(form.cantidad), fechaEmision: form.fechaEmision || fechaISO }
+    } else if (form.tipo === 'Autorizacion') {
+      payload = { ...base, especialidad: form.especialidad, medico: form.medico, lugarAtencion: form.lugarAtencion, fechaPrevista: form.fechaPrevista || null, diasInternacion: form.diasInternacion ? Number(form.diasInternacion) : null }
+    } else if (form.tipo === 'Reintegro') {
+      payload = { ...base, medico: form.medico, especialidad: form.especialidad, lugarAtencion: form.lugarAtencion, facturaCuit: form.facturaCuit, facturaValor: form.facturaValor ? parseFloat(String(form.facturaValor).replace(',','.')) : null, formaPago: form.formaPago, cbu: form.formaPago === 'Transferencia' ? form.cbu : undefined }
     }
 
     try {
@@ -814,6 +874,11 @@ export default function Solicitudes() {
                       <td className="px-4 sm:px-6 py-3">
                         <p className="text-sm font-600 text-slate-800">{sol.afiliado}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{sol.nro}</p>
+                        {sol.origen === 'afiliado' && (
+                          <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-xs font-500 bg-blue-50 text-blue-600 border border-blue-100">
+                            Solicitada por afiliado
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 sm:px-6 py-3">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-500 ${tipoConfig[sol.tipo]}`}>

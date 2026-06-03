@@ -31,6 +31,7 @@ export function ModalCargaReceta({ isOpen, onClose, activeProfile, onCreated }: 
     setSaving(true);
     try {
       const created = await recetasApi.submitReceta({
+        affiliateId: activeProfile.id,
         medicamento: medicamento.trim(),
         presentacion,
         cantidad,
