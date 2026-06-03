@@ -221,7 +221,12 @@ export const cartillaApi = {
     if (params.page !== undefined) url.searchParams.set("page", String(params.page));
     if (params.limit !== undefined) url.searchParams.set("limit", String(params.limit));
     const response = await fetch(url.toString(), { credentials: "include" });
-    if (!response.ok) throw new Error("Error al buscar en la cartilla");
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("El servidor recibió demasiadas solicitudes. Esperá unos segundos e intentá nuevamente.");
+      }
+      throw new Error("Error al buscar en la cartilla");
+    }
     return response.json();
   },
 };
@@ -421,13 +426,23 @@ export const turnosApi = {
     const url = new URL(`${API_BASE_URL}/agendas`);
     if (idEspecialidad) url.searchParams.set("idEspecialidad", String(idEspecialidad));
     const response = await fetch(url.toString(), { credentials: "include" });
-    if (!response.ok) throw new Error("Error al obtener agendas");
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("El servidor está limitando temporalmente la consulta de profesionales. Intentá nuevamente en unos segundos.");
+      }
+      throw new Error("Error al obtener agendas");
+    }
     return response.json();
   },
 
   getEspecialidades: async (): Promise<EspecialidadAPI[]> => {
     const response = await fetch(`${API_BASE_URL}/specialties`, { credentials: "include" });
-    if (!response.ok) throw new Error("Error al obtener especialidades");
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("El servidor está limitando temporalmente la carga de especialidades. Intentá nuevamente en unos segundos.");
+      }
+      throw new Error("Error al obtener especialidades");
+    }
     return response.json();
   },
 };
