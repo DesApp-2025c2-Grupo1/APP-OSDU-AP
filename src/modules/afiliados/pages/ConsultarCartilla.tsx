@@ -298,8 +298,8 @@ export function ConsultarCartilla() {
         tipoPrestador: tab === "centros" ? "centro_medico" : "profesional",
       });
       setResultados(data);
-    } catch {
-      setError("Ocurrió un error al buscar. Intentá nuevamente.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ocurrió un error al buscar. Intentá nuevamente.");
     } finally {
       setLoadingSearch(false);
     }
