@@ -103,6 +103,59 @@ export interface FamilyMember {
   nroDocumento: string;
 }
 
+export interface AffiliatePhone {
+  idTelefono: number;
+  telefono: string;
+}
+
+export interface AffiliateEmail {
+  idEmail: number;
+  email: string;
+}
+
+export interface AffiliatePlan {
+  idPlan: number;
+  id: number;
+  nombre: string;
+}
+
+export interface AffiliateProfile {
+  id: number;
+  idUsuario?: number;
+  dni?: string;
+  nroDocumento?: string;
+  tipoDocumento?: string;
+  nombre: string;
+  apellido: string;
+  fecha_nacimiento?: string;
+  fechaNacimiento?: string;
+  direccion?: string;
+  localidad?: string;
+  provincia?: string;
+  telefono?: string;
+  telefonos?: AffiliatePhone[];
+  email?: string;
+  emailPrincipal?: string;
+  emails?: AffiliateEmail[];
+  credencial?: string;
+  credencial_number?: string;
+  plan?: AffiliatePlan;
+  grupoFamiliar?: number;
+  idAfiliadoTitular?: number | null;
+  parentesco?: string;
+  activo?: boolean;
+  estado?: string;
+  fechaAlta?: string;
+  fecha_alta?: string;
+  altaProgramada?: string | null;
+  bajaProgramada?: string | null;
+}
+
+export interface AffiliateProfileResponse {
+  afiliado: AffiliateProfile;
+  grupoFamiliar: AffiliateProfile[];
+}
+
 export interface TurnoAPI {
   id: number;
   fecha: string;
@@ -566,7 +619,7 @@ export const api = {
     return response.json();
   },
 
-  getMyProfile: async () => {
+  getMyProfile: async (): Promise<AffiliateProfileResponse> => {
     const response = await fetch(`${API_BASE_URL}/affiliates/me`, {
       credentials: "include",
     });

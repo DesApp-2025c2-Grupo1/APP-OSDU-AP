@@ -12,8 +12,6 @@ function formatDate(value) {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   })
 }
 
@@ -24,8 +22,12 @@ function getPasswordChecks(password) {
       valid: password.length >= 8,
     },
     {
-      label: 'Incluye al menos una letra',
-      valid: /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/.test(password),
+      label: 'Incluye una minúscula',
+      valid: /[a-záéíóúüñ]/.test(password),
+    },
+    {
+      label: 'Incluye una mayúscula',
+      valid: /[A-ZÁÉÍÓÚÜÑ]/.test(password),
     },
     {
       label: 'Incluye al menos un número',
@@ -369,6 +371,7 @@ function PasswordInput({ field, placeholder, value, visible, onChange, onToggleV
 }
 
 function ConfiguracionModal({ initialSettings, onClose, onSave }) {
+  const { updateUsuario } = useAuth()
   const [passwords, setPasswords] = useState({
     actual: '',
     nueva: '',
@@ -384,22 +387,25 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     email: initialSettings?.email ?? true,
   }))
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('success')
   const [passwordErrors, setPasswordErrors] = useState({})
 
   function updatePassword(field, value) {
     setMessage('')
+    setMessageType('success')
     setPasswordErrors(prev => ({ ...prev, [field]: '' }))
     setPasswords(prev => ({ ...prev, [field]: value }))
   }
 
   function updateSetting(field, value) {
     setMessage('')
+    setMessageType('success')
     setSettings(prev => ({ ...prev, [field]: value }))
   }
 
   function validateNewPassword(value) {
     if (!getPasswordChecks(value).every(check => check.valid)) {
-      return 'La nueva contraseña debe tener al menos 8 caracteres, incluir letras y números, y no contener espacios.'
+      return 'La nueva contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y números, y no contener espacios.'
     }
     return ''
   }
@@ -422,6 +428,7 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
 
     if (Object.keys(nextErrors).length > 0) {
       setPasswordErrors(nextErrors)
+      setMessageType('error')
       setMessage('Revisá los campos de contraseña.')
       return
     }
@@ -429,29 +436,36 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     setPasswordErrors({})
 
     if (!passwords.actual || !passwords.nueva || !passwords.confirmar) {
+      setMessageType('error')
       setMessage('Completá los campos de contraseña.')
       return
     }
     const passwordError = validateNewPassword(passwords.nueva)
     if (passwordError) {
+      setMessageType('error')
       setMessage(passwordError)
       return
     }
     if (passwords.nueva !== passwords.confirmar) {
+      setMessageType('error')
       setMessage('La nueva contraseña no coincide con la confirmación.')
       return
     }
     try {
       await api.changePassword(passwords.actual, passwords.nueva)
+      updateUsuario({ debeCambiarPassword: false })
       setPasswords({ actual: '', nueva: '', confirmar: '' })
+      setMessageType('success')
       setMessage('Contraseña actualizada correctamente.')
-    } catch {
-      setMessage('No se pudo actualizar la contraseña.')
+    } catch (error) {
+      setMessageType('error')
+      setMessage(error instanceof Error ? error.message : 'No se pudo actualizar la contraseña.')
     }
   }
 
   function savePreferences() {
     onSave(settings)
+    setMessageType('success')
     setMessage('Preferencias guardadas.')
   }
 
@@ -587,7 +601,13 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
         </div>
 
         {message && (
-          <div className="mx-4 sm:mx-6 mb-6 px-4 py-3 rounded-xl border border-teal-100 bg-teal-50 text-sm font-500 text-teal-700">
+          <div
+            className={`mx-4 sm:mx-6 mb-6 px-4 py-3 rounded-xl border text-sm font-500 ${
+              messageType === 'error'
+                ? 'border-rose-100 bg-rose-50 text-rose-700'
+                : 'border-teal-100 bg-teal-50 text-teal-700'
+            }`}
+          >
             {message}
           </div>
         )}
