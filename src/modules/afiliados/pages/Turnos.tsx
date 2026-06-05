@@ -32,19 +32,41 @@ interface TurnoVista {
   especialidad: string;
   lugar: string;
   fecha: string;
+  fechaFormateada: string;
   horario: string;
   estado: EstadoTurno;
 }
 
-const mapApiToVista = (t: TurnoAPI): TurnoVista => ({
-  id: String(t.id),
-  medico: t.prestador.nombre ?? "N/A",
-  especialidad: t.prestador.especialidad ?? "",
-  lugar: [t.lugar.direccion, t.lugar.localidad].filter(Boolean).join(", "),
-  fecha: t.fecha ? t.fecha.split('T')[0] : t.fecha,
-  horario: t.horaIni,
-  estado: ESTADO_MAP[t.estado] ?? "Reservado",
-});
+const formatDateDDMMYYYY = (value: string) => {
+  if (!value) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match) {
+    const [, yyyy, mm, dd] = match;
+    return `${dd}/${mm}/${yyyy}`;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+};
+
+const mapApiToVista = (t: TurnoAPI): TurnoVista => {
+  const fecha = t.fecha ? t.fecha.split('T')[0] : t.fecha;
+  return {
+    id: String(t.id),
+    medico: t.prestador.nombre ?? "N/A",
+    especialidad: t.prestador.especialidad ?? "",
+    lugar: [t.lugar.direccion, t.lugar.localidad].filter(Boolean).join(", "),
+    fecha,
+    fechaFormateada: formatDateDDMMYYYY(fecha),
+    horario: t.horaIni,
+    estado: ESTADO_MAP[t.estado] ?? "Reservado",
+  };
+};
 
 const esCancelable = (turno: TurnoVista): boolean => {
   if (turno.estado !== "Reservado") return false;
@@ -231,6 +253,10 @@ export function Turnos() {
                       </div>
 
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <CalendarX size={11} className="text-gray-400" />
+                          <span>{turno.fechaFormateada}</span>
+                        </div>
                         <div className="flex items-center gap-1.5 text-xs text-gray-500">
                           <Clock size={11} className="text-gray-400" />
                           <span>{turno.horario} hs</span>

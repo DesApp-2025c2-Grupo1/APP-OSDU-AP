@@ -88,6 +88,12 @@ function formatFileSize(size) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function buildAttachmentUrl(ruta) {
+  if (!ruta) return null
+  const base = (import.meta.env.VITE_API_URL || 'http://localhost:9002').replace(/\/$/, '')
+  return `${base}${ruta.startsWith('/') ? ruta : `/${ruta}`}`
+}
+
 function StepCircle({ paso, idx, actualIdx }) {
   const isAprobado  = paso.key === 'Aprobada'
   const isRechazado = paso.key === 'Rechazada'
@@ -116,6 +122,7 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
   const actualIdx = pasoActualIdx(solicitud.estado)
   const [accion, setAccion] = useState(null)
   const [motivo, setMotivo] = useState('')
+  const attachmentUrl = buildAttachmentUrl(solicitud?.adjunto?.ruta)
 
   function confirmarCambio() {
     if (!accion) return
@@ -246,9 +253,21 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
                             {solicitud.adjunto.tipo ? ` · ${solicitud.adjunto.tipo}` : ''}
                           </p>
                         </div>
-                        <span className="inline-flex w-fit items-center rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-700 text-teal-700">
-                          Cargado
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {attachmentUrl ? (
+                            <a
+                              href={attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex w-fit items-center rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-700 text-teal-700 hover:bg-teal-100 transition-colors"
+                            >
+                              Ver o descargar
+                            </a>
+                          ) : null}
+                          <span className="inline-flex w-fit items-center rounded-full border border-teal-200 bg-white px-3 py-1 text-xs font-700 text-teal-700">
+                            Cargado
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
