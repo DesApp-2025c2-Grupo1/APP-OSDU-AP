@@ -74,6 +74,32 @@ const STEPS = [
   { num: 3, label: "Documentación", icon: FileText },
 ];
 
+const PAISES = [
+  "Argentina",
+  "Bolivia",
+  "Brasil",
+  "Chile",
+  "Colombia",
+  "Ecuador",
+  "Paraguay",
+  "Perú",
+  "Uruguay",
+  "Venezuela",
+  "Alemania",
+  "Canadá",
+  "China",
+  "España",
+  "Estados Unidos",
+  "Francia",
+  "Italia",
+  "Japón",
+  "México",
+  "Portugal",
+  "Reino Unido",
+  "Rusia",
+  "Otro",
+];
+
 const inputBase =
   "w-full px-3.5 py-3 text-sm bg-gray-50 border rounded-xl focus:ring-2 focus:border-transparent transition-all outline-none text-slate-700 placeholder:text-slate-300 disabled:opacity-50";
 const inputOk = `${inputBase} border-gray-200 focus:ring-unahur`;
@@ -117,7 +143,7 @@ export function Register() {
     localidad: "",
     provincia: "",
     codigoPostal: "",
-    pais: "",
+    pais: "Argentina",
     familiares: [] as FamilyMember[],
     dni_document: null as File | null,
     payslip_document: null as File | null,
@@ -500,11 +526,15 @@ export function Register() {
                         </div>
                         <div>
                           <label className={labelClass}>País</label>
-                          <input
-                            type="text" value={formData.pais}
+                          <select
+                            value={formData.pais}
                             onChange={(e) => setFormData({ ...formData, pais: e.target.value })}
-                            className={inputOk} placeholder="Argentina"
-                          />
+                            className={inputOk}
+                          >
+                            {PAISES.map((pais) => (
+                              <option key={pais} value={pais}>{pais}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
