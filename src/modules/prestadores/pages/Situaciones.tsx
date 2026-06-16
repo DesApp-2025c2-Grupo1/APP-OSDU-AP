@@ -501,10 +501,10 @@ export default function Situaciones() {
       </header>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-3 backdrop-blur-sm">
-          <section className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3 sm:px-6">
-              <div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-3 pb-20 backdrop-blur-sm sm:p-4">
+          <section className="flex max-h-[calc(100dvh-6.5rem)] min-h-0 w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl sm:max-h-[92vh] md:max-w-6xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-6">
+              <div className="min-w-0">
                 <h2 className="text-base font-900 text-slate-800">{editingId ? 'Editar situación terapéutica' : 'Nueva situación terapéutica'}</h2>
                 <p className="mt-0.5 text-xs font-600 text-slate-400">Completá los datos para registrar una nueva situación.</p>
               </div>
@@ -515,14 +515,14 @@ export default function Situaciones() {
               </button>
             </div>
 
-            <div className="overflow-y-auto px-4 py-3 sm:px-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-6">
 
               {error && <div className="mb-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm font-700 text-rose-700">{error}</div>}
 
-              <div className="space-y-4">
-                <section className="border-b border-slate-100 pb-4">
+              <div className="space-y-3 sm:space-y-4">
+                <section className="border-b border-slate-100 pb-3 sm:pb-4">
                   <SectionTitle icon={<UserIcon />} number="1" title="Afiliado / Integrante" />
-                  <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                  <div className="mt-3 grid gap-4 md:grid-cols-2">
                     <label className="block">
                       <span className="mb-1.5 block text-xs font-900 text-slate-700">Afiliado</span>
                       <div className="relative">
@@ -578,9 +578,9 @@ export default function Situaciones() {
                   </div>
                 </section>
 
-                <section className="border-b border-slate-100 pb-4">
+                <section className="border-b border-slate-100 pb-3 sm:pb-4">
                   <SectionTitle icon={<CalendarIcon />} number="2" title="Datos de la situación" />
-                  <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                  <div className="mt-3 grid gap-4 md:grid-cols-2">
                     <label className="block">
                       <span className="mb-1.5 block text-xs font-900 text-slate-700">Diagnóstico / Situación</span>
                       <input
@@ -621,7 +621,7 @@ export default function Situaciones() {
                       <FieldError field="fechaInicio" />
                     </label>
 
-                    <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
                       <label className="block">
                         <span className="mb-1.5 block text-xs font-900 text-slate-700">Fecha estimada de finalización (opcional)</span>
                         <CalendarDateInput
@@ -650,7 +650,7 @@ export default function Situaciones() {
 
                 <section>
                   <SectionTitle icon={<NoteIcon />} number="3" title="Tratamiento / Observaciones" />
-                  <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                  <div className="mt-3 grid gap-4 md:grid-cols-2">
                     <label className="block">
                       <span className="mb-1.5 block text-xs font-900 text-slate-700">Tratamiento indicado (opcional)</span>
                       <input
@@ -684,11 +684,11 @@ export default function Situaciones() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-4 border-t border-slate-100 bg-slate-50/50 px-4 py-3 sm:px-6">
+            <div className="flex shrink-0 justify-end gap-4 border-t border-slate-100 bg-slate-50/50 px-4 py-3 sm:px-6">
               <button
                 onClick={guardarSituacion}
                 disabled={saving}
-                className="rounded-lg bg-teal-600 px-7 py-2 text-sm font-900 text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl bg-teal-600 px-7 py-2.5 text-sm font-900 text-white shadow-sm hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-lg sm:py-2"
               >
                 {saving ? 'Guardando...' : 'Guardar situación'}
               </button>
