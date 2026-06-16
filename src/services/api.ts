@@ -467,7 +467,7 @@ export const turnosApi = {
     fecha: string;
     horaIni: string;
     horaFin: string;
-    motivo: string;
+    motivo?: string;
     afiliadoId?: string;
   }): Promise<TurnoAPI> => {
     const response = await fetch(`${API_BASE_URL}/affiliates/turnos`, {

@@ -92,8 +92,7 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
     if (!afiliadoId) nextErrors.afiliado = 'Seleccioná un afiliado de la búsqueda.'
     if (!isValidDate(fecha)) nextErrors.fecha = 'Ingresá una fecha válida con formato DD/MM/AAAA.'
     if (toMinutes(horaFin) <= toMinutes(horaIni)) nextErrors.hora = 'La hora de fin debe ser posterior a la de inicio.'
-    if (!motivo.trim()) nextErrors.motivo = 'Ingresá el motivo del turno.'
-    else if (motivo.trim().length < 5) nextErrors.motivo = 'El motivo debe tener al menos 5 caracteres.'
+    if (motivo.trim() && motivo.trim().length < 5) nextErrors.motivo = 'El motivo debe tener al menos 5 caracteres.'
     setErrors(nextErrors)
     return nextErrors
   }
@@ -105,12 +104,12 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
 
   function guardar() {
     const nextErrors = validate()
-    setTouched({ afiliado: true, fecha: true, hora: true, motivo: true })
+    setTouched({ afiliado: true, fecha: true, hora: true, motivo: !!motivo.trim() })
     if (Object.keys(nextErrors).length > 0) {
       setSubmitError('Revisá los campos marcados antes de guardar el turno.')
       return
     }
-    onGuardar({ afiliadoId, afiliado, fecha, horaIni, horaFin, motivo, notas })
+    onGuardar({ afiliadoId, afiliado, fecha, horaIni, horaFin, motivo: motivo.trim(), notas })
     onClose()
   }
 
@@ -247,14 +246,14 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
 
           {/* Motivo */}
           <div>
-            <label className="block text-xs font-600 text-slate-600 mb-1.5">Motivo</label>
+            <label className="block text-xs font-600 text-slate-600 mb-1.5">Motivo <span className="font-400 text-slate-400">(opcional)</span></label>
             <div className="relative">
               <svg className="absolute left-3 top-3 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <input
                 type="text"
-                placeholder="Motivo de consulta"
+                placeholder="Motivo de consulta (opcional)"
                 value={motivo}
                 onChange={e => { setSubmitError(''); setMotivo(e.target.value) }}
                 onBlur={() => markTouched('motivo')}
