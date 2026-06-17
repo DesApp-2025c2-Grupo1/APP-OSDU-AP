@@ -49,6 +49,13 @@ function todayDateInputValue() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function formatDateDDMMYYYY(value?: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || "");
+  if (!match) return value || "";
+  const [, yyyy, mm, dd] = match;
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 function validarArchivo(file: File | null): string | null {
   if (!file) return "Este documento es requerido.";
   const tiposValidos = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
@@ -579,7 +586,7 @@ export function Register() {
                           <div>
                             <p className="font-bold text-slate-800 text-sm">{member.nombreCompleto}</p>
                             <p className="text-xs text-slate-400 mt-0.5">
-                              {member.parentesco} · DNI {member.nroDocumento} · Nac. {member.fechaNacimiento}
+                              {member.parentesco} · DNI {member.nroDocumento} · Nac. {formatDateDDMMYYYY(member.fechaNacimiento)}
                             </p>
                           </div>
                           <button type="button" onClick={() => removeFamilyMember(index)} className="text-slate-300 hover:text-red-400 transition-colors p-1">
@@ -624,6 +631,9 @@ export function Register() {
                         <option>Otro</option>
                       </select>
                       <div>
+                        <label className="mb-1 block text-[11px] font-bold text-slate-500">
+                          Fecha de nacimiento
+                        </label>
                         <input
                           type="date"
                           value={newFamilyMember.fechaNacimiento || ""}
