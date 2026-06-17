@@ -19,7 +19,6 @@ const tipoConfig = {
   'Autorización': 'bg-emerald-100 text-emerald-700',
   'Autorizacion': 'bg-emerald-100 text-emerald-700',
   'Receta':       'bg-violet-100 text-violet-700',
-  'Solicitud':    'bg-slate-100 text-slate-700',
 }
 
 const TABS = [
@@ -31,7 +30,6 @@ const TABS = [
 ]
 
 const ESTADOS   = ['Todos', 'Pendiente', 'En análisis', 'Observada', 'Aprobada', 'Rechazada', 'Resueltas']
-const TIPOS     = ['Todos', 'Reintegro', 'Autorización', 'Receta', 'Solicitud']
 const PAGE_SIZE = 10
 
 function isValidDDMMYYYY(value) {
@@ -287,7 +285,7 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
 
             <div>
               <label className={labelBase}>Tipo de solicitud</label>
-              <Dropdown value={form.tipo} options={['Reintegro', 'Autorización', 'Receta', 'Solicitud']}
+              <Dropdown value={form.tipo} options={['Reintegro', 'Autorización', 'Receta']}
                 onChange={value => { set('tipo', value === 'Autorización' ? 'Autorizacion' : value) }}
                 placeholder="Seleccionar tipo"
                 buttonClassName={`py-2.5 ${errors.tipo ? 'border-rose-300' : ''}`}

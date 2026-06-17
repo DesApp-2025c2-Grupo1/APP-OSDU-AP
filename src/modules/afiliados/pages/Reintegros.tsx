@@ -4,6 +4,7 @@ import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaReintegro } from "../components/ModalCargaReintegro";
 import { reintegrosApi, type ReintegroAPI } from "../../../services/api";
+import { parseDisplayDate } from "../../../utils/date";
 import { Calendar, Plus, ChevronLeft, ChevronRight, FileSearch, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 
 const ITEMS_POR_PAGINA = 6;
@@ -48,7 +49,8 @@ export function Reintegros() {
     return delUsuario.filter(r => {
       if (filtro === "PENDIENTE") return r.estado === "Recibido" || r.estado === "En análisis";
       if (filtro === "OBSERVADA") return r.estado === "Observado";
-      const fechaDelTramite = new Date((r.fechaEstado || r.fechaPrestacion) + "T00:00:00");
+      const fechaDelTramite = parseDisplayDate(r.fechaEstado || r.fechaPrestacion);
+      if (!fechaDelTramite) return false;
       if (filtro === "RECHAZADA") return r.estado === "Rechazado" && fechaDelTramite >= limiteSemanas;
       if (filtro === "APROBADA")  return r.estado === "Aprobado"  && fechaDelTramite >= limiteSemanas;
       return false;
