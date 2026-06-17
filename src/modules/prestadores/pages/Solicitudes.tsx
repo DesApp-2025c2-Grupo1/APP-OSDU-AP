@@ -31,6 +31,11 @@ const TABS = [
 
 const ESTADOS   = ['Todos', 'Pendiente', 'En análisis', 'Observada', 'Aprobada', 'Rechazada', 'Resueltas']
 const PAGE_SIZE = 10
+const TIPO_SOLICITUD_OPTIONS = [
+  { value: 'Reintegro', label: 'Reintegro' },
+  { value: 'Autorizacion', label: 'Autorización' },
+  { value: 'Receta', label: 'Receta' },
+]
 
 function isValidDDMMYYYY(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim())
@@ -60,6 +65,14 @@ function normalizeSlashDate(value) {
   if (!match) return value
   const [, first, second, yyyy] = match
   return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
+}
+
+function normalizeTipoSolicitud(tipo) {
+  return tipo === 'Solicitud' ? 'Autorizacion' : tipo
+}
+
+function displayTipoSolicitud(tipo) {
+  return tipo === 'Autorizacion' ? 'Autorización' : tipo
 }
 
 function DateTextPicker({ value, onChange, onBlur, className = '', placeholder = 'DD/MM/AAAA' }) {
@@ -285,8 +298,8 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
 
             <div>
               <label className={labelBase}>Tipo de solicitud</label>
-              <Dropdown value={form.tipo} options={['Reintegro', 'Autorización', 'Receta']}
-                onChange={value => { set('tipo', value === 'Autorización' ? 'Autorizacion' : value) }}
+              <Dropdown value={form.tipo} options={TIPO_SOLICITUD_OPTIONS}
+                onChange={value => { set('tipo', value) }}
                 placeholder="Seleccionar tipo"
                 buttonClassName={`py-2.5 ${errors.tipo ? 'border-rose-300' : ''}`}
                 maxMenuHeight="max-h-56" />
@@ -501,9 +514,9 @@ export default function Solicitudes() {
     ])
       .then(([solicitudes, autorizaciones, recetas]) => {
         const todas = [
-          ...solicitudes.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha) })),
-          ...autorizaciones.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha), origen: 'afiliado' })),
-          ...recetas.map(s => ({ ...s, fecha: normalizeSlashDate(s.fecha), origen: 'afiliado' })),
+          ...solicitudes.map(s => ({ ...s, tipo: normalizeTipoSolicitud(s.tipo), fecha: normalizeSlashDate(s.fecha) })),
+          ...autorizaciones.map(s => ({ ...s, tipo: normalizeTipoSolicitud(s.tipo), fecha: normalizeSlashDate(s.fecha), origen: 'afiliado' })),
+          ...recetas.map(s => ({ ...s, tipo: normalizeTipoSolicitud(s.tipo), fecha: normalizeSlashDate(s.fecha), origen: 'afiliado' })),
         ]
         setData(todas)
         setLoading(false)
@@ -602,7 +615,7 @@ export default function Solicitudes() {
     if (!tabFn(s)) return false
     if (!ignore.estado && filtEstado === 'Resueltas' && !['Aprobada', 'Rechazada'].includes(s.estado)) return false
     if (!ignore.estado && filtEstado !== 'Todos' && filtEstado !== 'Resueltas' && s.estado !== filtEstado) return false
-    if (!ignore.tipo && filtTipo !== 'Todos' && s.tipo !== filtTipo) return false
+    if (!ignore.tipo && filtTipo !== 'Todos' && displayTipoSolicitud(s.tipo) !== filtTipo) return false
     if (!ignore.afiliado && filtAfil !== 'Todos' && s.afiliado !== filtAfil) return false
     if (!ignore.fecha && filtFecha && !dateCandidates(s.fecha).includes(filterDateValue(filtFecha))) return false
     if (search && !s.afiliado.toLowerCase().includes(search.toLowerCase()) &&
@@ -626,7 +639,7 @@ export default function Solicitudes() {
     filtAfil
   )
   const TIPOS_FILTRADOS = keepSelected(
-    ['Todos', ...Array.from(new Set(filterSolicitudes({ tipo: true }).map(s => s.tipo)))],
+    ['Todos', ...Array.from(new Set(filterSolicitudes({ tipo: true }).map(s => displayTipoSolicitud(s.tipo))))],
     filtTipo
   )
   const ESTADOS_SELECT = keepSelected(ESTADOS_FILTRADOS, filtEstado)
@@ -881,7 +894,7 @@ export default function Solicitudes() {
                       </td>
                       <td className="px-4 sm:px-6 py-3">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-500 ${tipoConfig[sol.tipo]}`}>
-                          {sol.tipo}
+                          {displayTipoSolicitud(sol.tipo)}
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-3">

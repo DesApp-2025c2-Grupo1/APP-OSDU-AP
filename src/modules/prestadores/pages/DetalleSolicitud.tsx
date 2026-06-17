@@ -62,6 +62,8 @@ const tipoColor = {
   'Receta':       'bg-violet-100 text-violet-700 border-violet-200',
 }
 
+const displayTipoSolicitud = (tipo: string) => tipo === 'Autorizacion' ? 'Autorización' : tipo
+
 const estadoColor = {
   'Pendiente':   'bg-amber-100 text-amber-700 border-amber-200',
   'En análisis': 'bg-indigo-100 text-indigo-700 border-indigo-200',
@@ -175,7 +177,7 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
               </p>
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-500 border ${tipoColor[solicitud.tipo]}`}>
-                  {solicitud.tipo}
+                  {displayTipoSolicitud(solicitud.tipo)}
                 </span>
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-500 border ${estadoColor[solicitud.estado]}`}>
                   {solicitud.estado}
@@ -226,7 +228,7 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
                   <p>
                     <span className="text-slate-500 font-500">Tipo de solicitud:</span>
                     {'  '}
-                    <span className="text-slate-700">{solicitud.tipo}</span>
+                    <span className="text-slate-700">{displayTipoSolicitud(solicitud.tipo)}</span>
                   </p>
                   <p>
                     <span className="text-slate-500 font-500">Fecha de registro:</span>
