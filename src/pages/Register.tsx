@@ -24,13 +24,29 @@ function validarDocumento(tipo: string, nro: string): string | null {
 
 function validarFechaNacimiento(fecha: string): string | null {
   if (!fecha) return "La fecha de nacimiento es requerida.";
-  const d = new Date(fecha);
-  if (isNaN(d.getTime())) return "Fecha inválida.";
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha);
+  if (!match) return "Fecha inválida.";
+  const [, yyyy, mm, dd] = match;
+  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+  if (
+    d.getFullYear() !== Number(yyyy) ||
+    d.getMonth() !== Number(mm) - 1 ||
+    d.getDate() !== Number(dd)
+  ) return "Fecha inválida.";
   const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
   if (d > hoy) return "La fecha no puede ser futura.";
   const años = (hoy.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
   if (años > 120) return "Fecha de nacimiento no válida.";
   return null;
+}
+
+function todayDateInputValue() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function validarArchivo(file: File | null): string | null {
@@ -151,10 +167,10 @@ export function Register() {
 
   const [step1Errors, setStep1Errors] = useState<Step1Errors>({});
   const [fileErrors, setFileErrors] = useState<{ dni?: string; payslip?: string }>({});
-  const [familiarErrors, setFamiliarErrors] = useState<{ nombreCompleto?: string; nroDocumento?: string }>({});
+  const [familiarErrors, setFamiliarErrors] = useState<{ nombreCompleto?: string; nroDocumento?: string; fechaNacimiento?: string }>({});
 
   const [newFamilyMember, setNewFamilyMember] = useState<FamilyMember>({
-    nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "",
+    nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "",
   });
 
   useEffect(() => {
@@ -200,10 +216,12 @@ export function Register() {
     else if (!NOMBRE_RE.test(newFamilyMember.nombreCompleto.trim())) errs.nombreCompleto = "Solo letras, mínimo 2 caracteres.";
     const docErr = validarDocumento("DNI", newFamilyMember.nroDocumento);
     if (docErr) errs.nroDocumento = docErr;
+    const fechaErr = validarFechaNacimiento(newFamilyMember.fechaNacimiento || "");
+    if (fechaErr) errs.fechaNacimiento = fechaErr;
     if (Object.keys(errs).length > 0) { setFamiliarErrors(errs); return; }
     setFamiliarErrors({});
     setFormData({ ...formData, familiares: [...formData.familiares, newFamilyMember] });
-    setNewFamilyMember({ nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "" });
+    setNewFamilyMember({ nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "" });
   };
 
   const removeFamilyMember = (index: number) => {
@@ -433,7 +451,7 @@ export function Register() {
                         type="date" value={formData.fechaNacimiento}
                         onChange={(e) => { setFormData({ ...formData, fechaNacimiento: e.target.value }); clearStep1Error("fechaNacimiento"); }}
                         className={step1Errors.fechaNacimiento ? inputErr : inputOk}
-                        max={new Date().toISOString().split("T")[0]}
+                        max={todayDateInputValue()}
                       />
                       <FieldError msg={step1Errors.fechaNacimiento} />
                     </div>
@@ -560,7 +578,9 @@ export function Register() {
                         <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                           <div>
                             <p className="font-bold text-slate-800 text-sm">{member.nombreCompleto}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{member.parentesco} · DNI {member.nroDocumento}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {member.parentesco} · DNI {member.nroDocumento} · Nac. {member.fechaNacimiento}
+                            </p>
                           </div>
                           <button type="button" onClick={() => removeFamilyMember(index)} className="text-slate-300 hover:text-red-400 transition-colors p-1">
                             <Trash2 size={16} />
@@ -592,17 +612,32 @@ export function Register() {
                         <FieldError msg={familiarErrors.nroDocumento} />
                       </div>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <select
                         value={newFamilyMember.parentesco}
                         onChange={(e) => setNewFamilyMember({ ...newFamilyMember, parentesco: e.target.value })}
-                        className={`${inputOk} flex-1`}
+                        className={inputOk}
                       >
                         <option>Hijo/a</option>
                         <option>Cónyuge</option>
                         <option>Padre/Madre</option>
                         <option>Otro</option>
                       </select>
+                      <div>
+                        <input
+                          type="date"
+                          value={newFamilyMember.fechaNacimiento || ""}
+                          onChange={(e) => {
+                            setNewFamilyMember({ ...newFamilyMember, fechaNacimiento: e.target.value });
+                            setFamiliarErrors((p) => ({ ...p, fechaNacimiento: undefined }));
+                          }}
+                          className={familiarErrors.fechaNacimiento ? inputErr : inputOk}
+                          max={todayDateInputValue()}
+                        />
+                        <FieldError msg={familiarErrors.fechaNacimiento} />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
                       <button
                         type="button"
                         onClick={handleAddFamilyMember}

@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { recetasApi, type RecetaAPI } from "../../../services/api";
+import { parseDisplayDate } from "../../../utils/date";
 import { Filter, Calendar, Download, ChevronLeft, ChevronRight, ArrowLeft, AlertCircle, CheckCircle2 } from "lucide-react";
 
 function descargarReceta(receta: RecetaAPI, afiliado: Persona) {
@@ -116,7 +117,8 @@ export function Recetas() {
     return delUsuario.filter(r => {
       if (filtro === "PENDIENTE") return r.estado === "Recibido" || r.estado === "En análisis";
       if (filtro === "OBSERVADA") return r.estado === "Observado";
-      const fecha = new Date(r.fechaEstado + "T00:00:00");
+      const fecha = parseDisplayDate(r.fechaEstado || r.fecha);
+      if (!fecha) return false;
       if (filtro === "RECHAZADA") return r.estado === "Rechazado" && fecha >= limiteSemanas;
       if (filtro === "APROBADA")  return r.estado === "Aprobado"  && fecha >= limiteSemanas;
       return false;

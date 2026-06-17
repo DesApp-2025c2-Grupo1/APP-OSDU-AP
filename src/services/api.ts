@@ -101,6 +101,7 @@ export interface FamilyMember {
   nombreCompleto: string;
   parentesco: string;
   nroDocumento: string;
+  fechaNacimiento?: string;
 }
 
 export interface AffiliatePhone {

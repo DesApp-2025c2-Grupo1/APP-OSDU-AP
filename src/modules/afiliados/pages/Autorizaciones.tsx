@@ -4,6 +4,7 @@ import { type Persona } from "../components/Layout";
 import { DashboardFiltros, type FiltroEstado } from "../components/DashboardFiltros";
 import { ModalCargaAutorizacion } from "../components/ModalCargaAutorizacion";
 import { autorizacionesApi, type AutorizacionAPI } from "../../../services/api";
+import { parseDisplayDate } from "../../../utils/date";
 import { Filter, Calendar, Plus, ChevronLeft, ChevronRight, BedDouble, ArrowLeft, Paperclip } from "lucide-react";
 
 export function Autorizaciones() {
@@ -41,7 +42,8 @@ export function Autorizaciones() {
     return delUsuario.filter(r => {
       if (filtro === "PENDIENTE") return r.estado === "Recibido" || r.estado === "En análisis";
       if (filtro === "OBSERVADA") return r.estado === "Observado";
-      const fechaDelTramite = new Date(r.fechaEstado + "T00:00:00");
+      const fechaDelTramite = parseDisplayDate(r.fechaEstado || r.fechaPrevista);
+      if (!fechaDelTramite) return false;
       if (filtro === "RECHAZADA") return r.estado === "Rechazado" && fechaDelTramite >= limiteSemanas;
       if (filtro === "APROBADA") return r.estado === "Aprobado" && fechaDelTramite >= limiteSemanas;
       return false;
