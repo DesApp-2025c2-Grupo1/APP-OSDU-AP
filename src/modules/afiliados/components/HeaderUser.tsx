@@ -24,6 +24,12 @@ interface HeaderUserProps {
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Sin datos";
+  const clean = String(value).split("T")[0];
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(clean);
+  if (match) {
+    const [, yyyy, mm, dd] = match;
+    return `${dd}/${mm}/${yyyy}`;
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Sin datos";
   return date.toLocaleDateString("es-AR", {
