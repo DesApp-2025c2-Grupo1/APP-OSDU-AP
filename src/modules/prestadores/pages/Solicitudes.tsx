@@ -17,7 +17,9 @@ const estadoConfig = {
 const tipoConfig = {
   'Reintegro':    'bg-pink-100 text-pink-700',
   'Autorización': 'bg-emerald-100 text-emerald-700',
+  'Autorizacion': 'bg-emerald-100 text-emerald-700',
   'Receta':       'bg-violet-100 text-violet-700',
+  'Solicitud':    'bg-slate-100 text-slate-700',
 }
 
 const TABS = [
@@ -29,7 +31,7 @@ const TABS = [
 ]
 
 const ESTADOS   = ['Todos', 'Pendiente', 'En análisis', 'Observada', 'Aprobada', 'Rechazada', 'Resueltas']
-const TIPOS     = ['Todos', 'Reintegro', 'Autorización', 'Receta']
+const TIPOS     = ['Todos', 'Reintegro', 'Autorización', 'Receta', 'Solicitud']
 const PAGE_SIZE = 10
 
 function isValidDDMMYYYY(value) {
@@ -59,8 +61,7 @@ function normalizeSlashDate(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value).trim())
   if (!match) return value
   const [, first, second, yyyy] = match
-  if (Number(first) > 12) return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
-  return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
+  return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
 }
 
 function DateTextPicker({ value, onChange, onBlur, className = '', placeholder = 'DD/MM/AAAA' }) {
@@ -286,7 +287,7 @@ function NuevaSolicitudModal({ onClose, onCreate }) {
 
             <div>
               <label className={labelBase}>Tipo de solicitud</label>
-              <Dropdown value={form.tipo} options={['Reintegro', 'Autorización', 'Receta']}
+              <Dropdown value={form.tipo} options={['Reintegro', 'Autorización', 'Receta', 'Solicitud']}
                 onChange={value => { set('tipo', value === 'Autorización' ? 'Autorizacion' : value) }}
                 placeholder="Seleccionar tipo"
                 buttonClassName={`py-2.5 ${errors.tipo ? 'border-rose-300' : ''}`}
