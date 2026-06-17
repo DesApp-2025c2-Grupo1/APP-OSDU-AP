@@ -10,8 +10,7 @@ function normalizeSlashDate(value) {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(value || '').trim())
   if (!match) return value || ''
   const [, first, second, yyyy] = match
-  if (Number(first) > 12) return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
-  return `${second.padStart(2, '0')}/${first.padStart(2, '0')}/${yyyy}`
+  return `${first.padStart(2, '0')}/${second.padStart(2, '0')}/${yyyy}`
 }
 
 function toISODateFromDDMMYYYY(value) {
