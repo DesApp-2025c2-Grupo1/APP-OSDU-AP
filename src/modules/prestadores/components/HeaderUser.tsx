@@ -322,29 +322,6 @@ function PerfilModal({ prestador, onClose }) {
   )
 }
 
-function getStoredSettings(cuit) {
-  try {
-    return JSON.parse(localStorage.getItem(`prestador-settings:${cuit}`)) ?? null
-  } catch {
-    return null
-  }
-}
-
-function Toggle({ checked, onChange }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 rounded-full transition-colors ${checked ? 'bg-teal-600' : 'bg-slate-300'}`}
-      aria-pressed={checked}
-    >
-      <span
-        className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
-      />
-    </button>
-  )
-}
-
 function PasswordInput({ field, placeholder, value, visible, onChange, onToggleVisible }) {
   return (
     <div className="relative">
@@ -370,7 +347,7 @@ function PasswordInput({ field, placeholder, value, visible, onChange, onToggleV
   )
 }
 
-function ConfiguracionModal({ initialSettings, onClose, onSave }) {
+function ConfiguracionModal({ onClose }) {
   const { updateUsuario } = useAuth()
   const [passwords, setPasswords] = useState({
     actual: '',
@@ -382,10 +359,6 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     nueva: false,
     confirmar: false,
   })
-  const [settings, setSettings] = useState(() => ({
-    solicitudes: initialSettings?.solicitudes ?? true,
-    email: initialSettings?.email ?? true,
-  }))
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
   const [passwordErrors, setPasswordErrors] = useState({})
@@ -395,12 +368,6 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     setMessageType('success')
     setPasswordErrors(prev => ({ ...prev, [field]: '' }))
     setPasswords(prev => ({ ...prev, [field]: value }))
-  }
-
-  function updateSetting(field, value) {
-    setMessage('')
-    setMessageType('success')
-    setSettings(prev => ({ ...prev, [field]: value }))
   }
 
   function validateNewPassword(value) {
@@ -463,12 +430,6 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     }
   }
 
-  function savePreferences() {
-    onSave(settings)
-    setMessageType('success')
-    setMessage('Preferencias guardadas.')
-  }
-
   function togglePasswordVisibility(field) {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }))
   }
@@ -480,12 +441,12 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
     >
       <div
         onMouseDown={e => e.stopPropagation()}
-        className="w-full max-w-5xl max-h-[92vh] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto"
+        className="w-full max-w-xl max-h-[92vh] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-y-auto"
       >
         <div className="px-4 sm:px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-700 text-slate-800">Configuración</h2>
-            <p className="text-sm text-slate-400 mt-0.5">Administrá tu cuenta y preferencias</p>
+            <p className="text-sm text-slate-400 mt-0.5">Administrá la seguridad de tu cuenta</p>
           </div>
           <button
             type="button"
@@ -499,7 +460,7 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
           </button>
         </div>
 
-        <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="p-4 sm:p-6">
           <section className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col">
             <h3 className="text-sm font-700 text-slate-800">Seguridad</h3>
             <p className="text-xs text-slate-400 mt-1">Cambiar contraseña</p>
@@ -555,49 +516,6 @@ function ConfiguracionModal({ initialSettings, onClose, onSave }) {
             </div>
           </section>
 
-          <section className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col">
-            <h3 className="text-sm font-700 text-slate-800">Preferencias de la cuenta</h3>
-            <p className="text-xs text-slate-400 mt-1">Configurá tus preferencias</p>
-
-            <div className="mt-6 divide-y divide-slate-100">
-              <div className="py-4 flex items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-slate-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0" />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-600 text-slate-700">Recibir notificaciones de solicitudes</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Te avisaremos sobre nuevas solicitudes y cambios de estado.</p>
-                  </div>
-                </div>
-                <Toggle checked={settings.solicitudes} onChange={value => updateSetting('solicitudes', value)} />
-              </div>
-
-              <div className="py-4 flex items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-slate-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8m-18 8h18a2 2 0 002-2V8a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-600 text-slate-700">Notificaciones por email</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Envío de notificaciones al correo electrónico registrado.</p>
-                  </div>
-                </div>
-                <Toggle checked={settings.email} onChange={value => updateSetting('email', value)} />
-              </div>
-
-            </div>
-
-            <div className="mt-auto pt-8 flex justify-end">
-              <button
-                type="button"
-                onClick={savePreferences}
-                className="px-8 py-2.5 text-sm font-700 text-teal-700 bg-white border border-teal-300 rounded-xl hover:bg-teal-50 transition-colors"
-              >
-                Guardar preferencias
-              </button>
-            </div>
-          </section>
         </div>
 
         {message && (
@@ -624,7 +542,6 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
   const [open, setOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settings, setSettings] = useState(() => getStoredSettings(cuit))
   const ref = useRef(null)
 
   const displaySubtitle = cuit ? `CUIT ${cuit}` : 'Prestador'
@@ -642,11 +559,6 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  function saveSettings(nextSettings) {
-    localStorage.setItem(`prestador-settings:${cuit}`, JSON.stringify(nextSettings))
-    setSettings(nextSettings)
-  }
 
   return (
     <div className="relative" ref={ref}>
@@ -719,9 +631,7 @@ export default function HeaderUser({ menuClassName = '' }: { menuClassName?: str
 
       {settingsOpen && (
         <ConfiguracionModal
-          initialSettings={settings}
           onClose={() => setSettingsOpen(false)}
-          onSave={saveSettings}
         />
       )}
     </div>

@@ -3,10 +3,8 @@ import type { Dispatch, SetStateAction } from 'react'
 import {
   Check,
   ChevronDown,
-  Download,
   FileText,
   MoreVertical,
-  Paperclip,
   Pencil,
   Search,
   Stethoscope,
@@ -47,10 +45,7 @@ type HistoryTabKey = 'resumen' | 'notas' | 'antecedentes' | 'estudios' | 'receta
 const HISTORY_TABS: { key: HistoryTabKey; label: string }[] = [
   { key: 'resumen', label: 'Resumen' },
   { key: 'notas', label: 'Notas clínicas' },
-  { key: 'antecedentes', label: 'Antecedentes' },
-  { key: 'estudios', label: 'Estudios' },
   { key: 'recetas', label: 'Recetas' },
-  { key: 'documentos', label: 'Documentos' },
 ]
 
 type NoteIconConfig = {
@@ -618,23 +613,6 @@ export default function HistoriaClinica() {
                         <p className="mt-4 whitespace-pre-line text-sm font-600 leading-7 text-slate-600">{selectedNote.nota || 'Sin detalle cargado.'}</p>
                       </div>
 
-                      <div className="my-6 h-px bg-slate-200" />
-
-                      <div>
-                        <p className="text-sm font-700 text-slate-500">Archivos adjuntos</p>
-                        <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
-                            <Paperclip className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-700 text-slate-700">laboratorio_16052024.pdf</p>
-                            <p className="text-xs font-700 text-slate-400">PDF - 245 KB</p>
-                          </div>
-                          <button className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
-                            <Download className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -765,26 +743,9 @@ export default function HistoriaClinica() {
                 <div>
                   <h2 className="text-base font-700 text-slate-800">Documentos</h2>
                   <p className="mt-1 text-sm font-600 text-slate-400">Archivos asociados a la historia clinica seleccionada.</p>
-                  {selectedNote ? (
-                    <div className="mt-5 max-w-xl rounded-xl border border-slate-200 bg-white px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
-                          <Paperclip className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-700 text-slate-700">laboratorio_16052024.pdf</p>
-                          <p className="text-xs font-700 text-slate-400">Adjunto de {noteTitle(selectedNote)}</p>
-                        </div>
-                        <button type="button" className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
-                          <Download className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-8 rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm font-700 text-slate-400">
-                      Sin documentos para mostrar.
-                    </div>
-                  )}
+                  <div className="mt-8 rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm font-700 text-slate-400">
+                    Sin documentos para mostrar.
+                  </div>
                 </div>
               )}
             </div>
