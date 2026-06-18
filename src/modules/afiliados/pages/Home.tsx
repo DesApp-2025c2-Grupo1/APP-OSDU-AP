@@ -10,7 +10,7 @@ export function Home() {
     { title: "Solicitar Turnos", icon: <Calendar size={24} />, route: "/turnos", color: "bg-blue-50 text-blue-600", desc: "Reserva tu cita médica" },
     { title: "Gestionar Reintegros", icon: <DollarSign size={24} />, route: "/reintegros", color: "bg-green-50 text-green-600", desc: "Solicita devoluciones" },
     { title: "Autorizaciones", icon: <FileText size={24} />, route: "/autorizaciones", color: "bg-purple-50 text-purple-600", desc: "Estado de tus trámites" },
-    { title: "Registrar Receta", icon: <ClipboardList size={24} />, route: "/recetas", color: "bg-orange-50 text-orange-600", desc: "Sube tus prescripciones" },
+    { title: "Gestionar recetas", icon: <ClipboardList size={24} />, route: "/recetas", color: "bg-orange-50 text-orange-600", desc: "Consultá el estado de tus recetas" },
     { title: "Consultar Cartilla", icon: <Search size={24} />, route: "/cartilla", color: "bg-unahur/10 text-unahur", desc: "Busca profesionales" },
   ];
 

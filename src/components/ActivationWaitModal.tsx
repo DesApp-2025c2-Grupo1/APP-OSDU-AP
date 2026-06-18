@@ -47,7 +47,7 @@ export function ActivationWaitModal({ isOpen, onClose }: Props) {
 
         <div className="bg-gray-50 py-4 px-8 text-center">
           <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-            Universidad Nacional de Hurlingham
+            OSDU
           </p>
         </div>
       </div>

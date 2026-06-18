@@ -98,7 +98,9 @@ export interface Affiliate extends AffiliateData {
 }
 
 export interface FamilyMember {
-  nombreCompleto: string;
+  nombre: string;
+  apellido: string;
+  nombreCompleto?: string;
   parentesco: string;
   nroDocumento: string;
   fechaNacimiento?: string;

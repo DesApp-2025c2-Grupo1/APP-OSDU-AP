@@ -4,42 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { ActivationWaitModal } from "../components/ActivationWaitModal";
 import { api, type FamilyMember } from "../services/api";
 import { fetchGeorefLocalities, fetchGeorefProvinces, type GeorefLocality, type GeorefProvince } from "../services/georefService";
+import { validateBirthDate, validateDocument, validatePersonName } from "../utils/affiliateValidation";
 
 // ── Validadores ────────────────────────────────────────────────────────────────
 
-const NOMBRE_RE = /^[a-záéíóúüñA-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s'-]{1,}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TELEFONO_RE = /^[\d\s+()-]{8,15}$/;
-const DNI_RE = /^\d{7,8}$/;
-const PASAPORTE_RE = /^[a-zA-Z0-9]{6,9}$/;
-
-function validarDocumento(tipo: string, nro: string): string | null {
-  if (!nro.trim()) return "El número de documento es requerido.";
-  if (tipo === "DNI" && !DNI_RE.test(nro.replace(/\s/g, "")))
-    return "El DNI debe tener 7 u 8 dígitos numéricos.";
-  if (tipo === "Pasaporte" && !PASAPORTE_RE.test(nro.replace(/\s/g, "")))
-    return "El pasaporte debe tener entre 6 y 9 caracteres alfanuméricos.";
-  return null;
-}
-
-function validarFechaNacimiento(fecha: string): string | null {
-  if (!fecha) return "La fecha de nacimiento es requerida.";
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha);
-  if (!match) return "Fecha inválida.";
-  const [, yyyy, mm, dd] = match;
-  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-  if (
-    d.getFullYear() !== Number(yyyy) ||
-    d.getMonth() !== Number(mm) - 1 ||
-    d.getDate() !== Number(dd)
-  ) return "Fecha inválida.";
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  if (d > hoy) return "La fecha no puede ser futura.";
-  const años = (hoy.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-  if (años > 120) return "Fecha de nacimiento no válida.";
-  return null;
-}
 
 function todayDateInputValue() {
   const today = new Date();
@@ -74,13 +44,13 @@ function validarPaso1(formData: {
   nroDocumento: string; fechaNacimiento: string; email: string; telefono: string;
 }): Step1Errors {
   const errs: Step1Errors = {};
-  if (!formData.nombre.trim()) errs.nombre = "El nombre es requerido.";
-  else if (!NOMBRE_RE.test(formData.nombre.trim())) errs.nombre = "Solo letras, mínimo 2 caracteres.";
-  if (!formData.apellido.trim()) errs.apellido = "El apellido es requerido.";
-  else if (!NOMBRE_RE.test(formData.apellido.trim())) errs.apellido = "Solo letras, mínimo 2 caracteres.";
-  const docErr = validarDocumento(formData.tipoDocumento, formData.nroDocumento);
+  const nombreErr = validatePersonName(formData.nombre, "nombre");
+  if (nombreErr) errs.nombre = nombreErr;
+  const apellidoErr = validatePersonName(formData.apellido, "apellido");
+  if (apellidoErr) errs.apellido = apellidoErr;
+  const docErr = validateDocument(formData.tipoDocumento, formData.nroDocumento);
   if (docErr) errs.nroDocumento = docErr;
-  const fechaErr = validarFechaNacimiento(formData.fechaNacimiento);
+  const fechaErr = validateBirthDate(formData.fechaNacimiento);
   if (fechaErr) errs.fechaNacimiento = fechaErr;
   if (!formData.email.trim()) errs.email = "El email es requerido.";
   else if (!EMAIL_RE.test(formData.email)) errs.email = "Ingresá un email válido.";
@@ -174,10 +144,10 @@ export function Register() {
 
   const [step1Errors, setStep1Errors] = useState<Step1Errors>({});
   const [fileErrors, setFileErrors] = useState<{ dni?: string; payslip?: string }>({});
-  const [familiarErrors, setFamiliarErrors] = useState<{ nombreCompleto?: string; nroDocumento?: string; fechaNacimiento?: string }>({});
+  const [familiarErrors, setFamiliarErrors] = useState<{ nombre?: string; apellido?: string; nroDocumento?: string; fechaNacimiento?: string }>({});
 
   const [newFamilyMember, setNewFamilyMember] = useState<FamilyMember>({
-    nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "",
+    nombre: "", apellido: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "",
   });
 
   useEffect(() => {
@@ -219,16 +189,25 @@ export function Register() {
 
   const handleAddFamilyMember = () => {
     const errs: typeof familiarErrors = {};
-    if (!newFamilyMember.nombreCompleto.trim()) errs.nombreCompleto = "El nombre es requerido.";
-    else if (!NOMBRE_RE.test(newFamilyMember.nombreCompleto.trim())) errs.nombreCompleto = "Solo letras, mínimo 2 caracteres.";
-    const docErr = validarDocumento("DNI", newFamilyMember.nroDocumento);
+    const nombreErr = validatePersonName(newFamilyMember.nombre, "nombre");
+    if (nombreErr) errs.nombre = nombreErr;
+    const apellidoErr = validatePersonName(newFamilyMember.apellido, "apellido");
+    if (apellidoErr) errs.apellido = apellidoErr;
+    const docErr = validateDocument("DNI", newFamilyMember.nroDocumento);
     if (docErr) errs.nroDocumento = docErr;
-    const fechaErr = validarFechaNacimiento(newFamilyMember.fechaNacimiento || "");
+    const fechaErr = validateBirthDate(newFamilyMember.fechaNacimiento || "");
     if (fechaErr) errs.fechaNacimiento = fechaErr;
     if (Object.keys(errs).length > 0) { setFamiliarErrors(errs); return; }
+    const member = {
+      ...newFamilyMember,
+      nombre: newFamilyMember.nombre.trim(),
+      apellido: newFamilyMember.apellido.trim(),
+      nombreCompleto: `${newFamilyMember.nombre.trim()} ${newFamilyMember.apellido.trim()}`,
+      nroDocumento: newFamilyMember.nroDocumento.trim(),
+    };
     setFamiliarErrors({});
-    setFormData({ ...formData, familiares: [...formData.familiares, newFamilyMember] });
-    setNewFamilyMember({ nombreCompleto: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "" });
+    setFormData({ ...formData, familiares: [...formData.familiares, member] });
+    setNewFamilyMember({ nombre: "", apellido: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "" });
   };
 
   const removeFamilyMember = (index: number) => {
@@ -584,7 +563,7 @@ export function Register() {
                       {formData.familiares.map((member, index) => (
                         <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                           <div>
-                            <p className="font-bold text-slate-800 text-sm">{member.nombreCompleto}</p>
+                            <p className="font-bold text-slate-800 text-sm">{member.nombre} {member.apellido}</p>
                             <p className="text-xs text-slate-400 mt-0.5">
                               {member.parentesco} · DNI {member.nroDocumento} · Nac. {formatDateDDMMYYYY(member.fechaNacimiento)}
                             </p>
@@ -597,21 +576,32 @@ export function Register() {
                     </div>
                   )}
 
-                  <div className="p-5 bg-unahur/5 rounded-2xl border-2 border-dashed border-unahur/20 space-y-3">
-                    <p className="text-xs font-bold text-unahur uppercase tracking-wide">Agregar integrante</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <input
-                          type="text" value={newFamilyMember.nombreCompleto}
-                          onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, nombreCompleto: e.target.value }); setFamiliarErrors((p) => ({ ...p, nombreCompleto: undefined })); }}
-                          className={familiarErrors.nombreCompleto ? inputErr : inputOk}
-                          placeholder="Nombre completo"
-                        />
-                        <FieldError msg={familiarErrors.nombreCompleto} />
-                      </div>
-                      <div>
-                        <input
-                          type="text" value={newFamilyMember.nroDocumento}
+	                  <div className="p-5 bg-unahur/5 rounded-2xl border-2 border-dashed border-unahur/20 space-y-3">
+	                    <p className="text-xs font-bold text-unahur uppercase tracking-wide">Agregar integrante</p>
+	                    <div className="grid grid-cols-2 gap-3">
+	                      <div>
+	                        <input
+	                          type="text" value={newFamilyMember.nombre}
+	                          onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, nombre: e.target.value }); setFamiliarErrors((p) => ({ ...p, nombre: undefined })); }}
+	                          className={familiarErrors.nombre ? inputErr : inputOk}
+	                          placeholder="Nombre"
+	                        />
+	                        <FieldError msg={familiarErrors.nombre} />
+	                      </div>
+	                      <div>
+	                        <input
+	                          type="text" value={newFamilyMember.apellido}
+	                          onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, apellido: e.target.value }); setFamiliarErrors((p) => ({ ...p, apellido: undefined })); }}
+	                          className={familiarErrors.apellido ? inputErr : inputOk}
+	                          placeholder="Apellido"
+	                        />
+	                        <FieldError msg={familiarErrors.apellido} />
+	                      </div>
+	                    </div>
+	                    <div className="grid grid-cols-2 gap-3">
+	                      <div>
+	                        <input
+	                          type="text" value={newFamilyMember.nroDocumento}
                           onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, nroDocumento: e.target.value }); setFamiliarErrors((p) => ({ ...p, nroDocumento: undefined })); }}
                           className={familiarErrors.nroDocumento ? inputErr : inputOk}
                           placeholder="DNI (sin puntos)"
