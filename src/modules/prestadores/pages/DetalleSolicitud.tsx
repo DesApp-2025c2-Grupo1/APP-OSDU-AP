@@ -97,6 +97,64 @@ function buildAttachmentUrl(ruta) {
   return `${base}${ruta.startsWith('/') ? ruta : `/${ruta}`}`
 }
 
+const RECETA_SECTION_LABELS = {
+  motivo: 'Motivo de la solicitud',
+  sintomas: 'Descripción de síntomas o situación médica',
+  medicamento: 'Medicamento solicitado como referencia',
+  observaciones: 'Observaciones adicionales',
+}
+
+function extractRecetaSection(description, label) {
+  const text = String(description || '')
+  const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const otherLabels = Object.values(RECETA_SECTION_LABELS)
+    .filter(item => item !== label)
+    .map(escapeRegex)
+    .join('|')
+  const match = text.match(new RegExp(`${escapeRegex(label)}:\\s*([\\s\\S]*?)(?=\\s+(?:${otherLabels}):|\\n\\n(?:${otherLabels}):|$)`, 'i'))
+  const value = match ? match[1].trim() : ''
+  return ['No informado', 'Sin observaciones'].includes(value) ? '' : value
+}
+
+function parseRecetaDescription(description) {
+  const parsed = {
+    motivo: extractRecetaSection(description, RECETA_SECTION_LABELS.motivo),
+    sintomas: extractRecetaSection(description, RECETA_SECTION_LABELS.sintomas),
+    medicamento: extractRecetaSection(description, RECETA_SECTION_LABELS.medicamento),
+    observaciones: extractRecetaSection(description, RECETA_SECTION_LABELS.observaciones),
+  }
+  return Object.values(parsed).some(Boolean) ? parsed : null
+}
+
+function RecetaDescription({ description }) {
+  const parsed = parseRecetaDescription(description)
+  if (!parsed) {
+    return (
+      <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+        {description || 'Sin descripción registrada.'}
+      </p>
+    )
+  }
+
+  const items = [
+    { label: 'Motivo de la solicitud', value: parsed.motivo },
+    { label: 'Síntomas o situación médica', value: parsed.sintomas },
+    { label: 'Medicamento de referencia', value: parsed.medicamento || 'No informado' },
+    { label: 'Observaciones adicionales', value: parsed.observaciones || 'Sin observaciones' },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {items.map(item => (
+        <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+          <p className="text-[11px] font-700 uppercase tracking-wide text-slate-400">{item.label}</p>
+          <p className="mt-1 text-sm font-600 text-slate-700 leading-relaxed whitespace-pre-wrap">{item.value}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function StepCircle({ paso, idx, actualIdx }) {
   const isAprobado  = paso.key === 'Aprobada'
   const isRechazado = paso.key === 'Rechazada'
@@ -119,18 +177,34 @@ function StepCircle({ paso, idx, actualIdx }) {
   )
 }
 
-export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado }: { solicitud: any; onVolver: () => void; onCambiarEstado: (id: string, estado: string) => void }) {
+export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado }: { solicitud: any; onVolver: () => void; onCambiarEstado: (id: string, estado: string, motivo?: string, extra?: any) => void }) {
   const { usuario: prestador, logout } = useAuth()
   const navigate = useNavigate()
   const actualIdx = pasoActualIdx(solicitud.estado)
   const [accion, setAccion] = useState(null)
   const [motivo, setMotivo] = useState('')
+  const [recetaEmitida, setRecetaEmitida] = useState({
+    medicamento: '',
+    presentacion: '',
+    cantidad: 1,
+    fechaEmision: new Date().toISOString().slice(0, 10),
+  })
   const attachmentUrl = buildAttachmentUrl(solicitud?.adjunto?.ruta)
   const isTerminal = ['Aprobada', 'Rechazada'].includes(solicitud.estado)
+  const requiereDatosReceta = solicitud.tipo === 'Receta' && accion === 'Aprobada'
 
   function confirmarCambio() {
     if (!accion) return
-    onCambiarEstado(solicitud.id, accion, motivo.trim())
+    if (requiereDatosReceta && (!recetaEmitida.medicamento.trim() || Number(recetaEmitida.cantidad) <= 0)) return
+    const extra = requiereDatosReceta
+      ? {
+        medicamento: recetaEmitida.medicamento.trim(),
+        presentacion: recetaEmitida.presentacion.trim() || undefined,
+        cantidad: Number(recetaEmitida.cantidad),
+        fechaEmision: recetaEmitida.fechaEmision,
+      }
+      : undefined
+    onCambiarEstado(solicitud.id, accion, motivo.trim(), extra)
     setAccion(null)
     setMotivo('')
   }
@@ -238,9 +312,13 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
                 </div>
                 <div>
                   <p className="text-sm font-600 text-slate-700 mb-1">Descripción:</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    {solicitud.descripcion || 'Sin descripción registrada.'}
-                  </p>
+                  {solicitud.tipo === 'Receta' ? (
+                    <RecetaDescription description={solicitud.descripcion} />
+                  ) : (
+                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                      {solicitud.descripcion || 'Sin descripción registrada.'}
+                    </p>
+                  )}
                   {solicitud.motivoEstado && (
                     <p className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600">
                       <span className="font-700 text-slate-700">Motivo del último cambio:</span> {solicitud.motivoEstado}
@@ -276,6 +354,16 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
                     </div>
                   )}
                 </div>
+                {solicitud.tipo === 'Receta' && solicitud.medicamento && (
+                  <div className="mt-4 rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3">
+                    <p className="text-xs font-700 uppercase text-teal-700">Receta emitida</p>
+                    <p className="mt-1 text-sm font-700 text-slate-800">{solicitud.medicamento}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {solicitud.presentacion || 'Presentación no informada'} · {solicitud.cantidad || '-'} unidad(es)
+                      {solicitud.fechaEmision ? ` · ${solicitud.fechaEmision}` : ''}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -338,12 +426,56 @@ export default function DetalleSolicitud({ solicitud, onVolver, onCambiarEstado 
               className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
             />
             {!motivo.trim() && <p className="mt-1.5 text-xs text-rose-500">El motivo es obligatorio.</p>}
+            {requiereDatosReceta && (
+              <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-teal-100 bg-teal-50/60 p-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[11px] font-700 uppercase tracking-wide text-teal-700">Medicamento indicado *</label>
+                  <input
+                    value={recetaEmitida.medicamento}
+                    onChange={e => setRecetaEmitida(prev => ({ ...prev, medicamento: e.target.value }))}
+                    className="w-full rounded-xl border border-teal-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="Ej: Amoxicilina 500 mg"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-700 uppercase tracking-wide text-teal-700">Presentación</label>
+                  <input
+                    value={recetaEmitida.presentacion}
+                    onChange={e => setRecetaEmitida(prev => ({ ...prev, presentacion: e.target.value }))}
+                    className="w-full rounded-xl border border-teal-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                    placeholder="Comprimidos, gotas..."
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-700 uppercase tracking-wide text-teal-700">Cantidad *</label>
+                  <input
+                    value={recetaEmitida.cantidad}
+                    onChange={e => setRecetaEmitida(prev => ({ ...prev, cantidad: e.target.value }))}
+                    type="number"
+                    min={1}
+                    className="w-full rounded-xl border border-teal-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[11px] font-700 uppercase tracking-wide text-teal-700">Fecha de emisión</label>
+                  <input
+                    value={recetaEmitida.fechaEmision}
+                    onChange={e => setRecetaEmitida(prev => ({ ...prev, fechaEmision: e.target.value }))}
+                    type="date"
+                    className="w-full rounded-xl border border-teal-100 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                {(!recetaEmitida.medicamento.trim() || Number(recetaEmitida.cantidad) <= 0) && (
+                  <p className="sm:col-span-2 text-xs text-rose-500">Para aprobar una receta, indicá medicamento y cantidad.</p>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
             <button onClick={() => setAccion(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-600 text-slate-600">Cancelar</button>
             <button
               onClick={confirmarCambio}
-              disabled={!motivo.trim()}
+              disabled={!motivo.trim() || (requiereDatosReceta && (!recetaEmitida.medicamento.trim() || Number(recetaEmitida.cantidad) <= 0))}
               className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-700 text-white disabled:opacity-50"
             >
               Confirmar

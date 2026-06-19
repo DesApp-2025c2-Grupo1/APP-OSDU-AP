@@ -90,6 +90,16 @@ export interface AffiliateData {
   payslip_document?: File;
 }
 
+export interface AffiliateRegistrationValidationError {
+  field: string;
+  message: string;
+}
+
+export interface AffiliateRegistrationValidationResponse {
+  valid: boolean;
+  errors: AffiliateRegistrationValidationError[];
+}
+
 export interface Affiliate extends AffiliateData {
   id: string;
   credencial: string;
@@ -214,22 +224,29 @@ export interface RecetaAPI {
   id: number;
   nro: string;
   idIntegrante: string;
-  medicamento: string;
-  presentacion: string;
-  cantidad: number;
+  motivoSolicitud: string;
+  descripcionSintomas: string;
+  medicamentoSolicitado: string | null;
+  medicamento: string | null;
+  presentacion: string | null;
+  cantidad: number | null;
   fecha: string;
+  fechaEmision: string | null;
   observaciones: string;
   estado: string;
+  estadoRaw: string;
   fechaEstado: string;
   mensajeObservacion: string | null;
+  motivoEstado: string | null;
+  respuestaAfiliado: string | null;
+  recetaEmitida: boolean;
 }
 
 export interface SubmitRecetaBody {
   affiliateId?: string | number;
-  medicamento: string;
-  presentacion: string;
-  cantidad: number;
-  fecha: string;
+  motivoSolicitud: string;
+  descripcionSintomas: string;
+  medicamentoSolicitado?: string;
   observaciones?: string;
 }
 
@@ -286,6 +303,7 @@ export interface CartillaPrestadorAPI {
 export const cartillaApi = {
   buscar: async (params: {
     especialidad?: string;
+    provincia?: string;
     localidad?: string;
     tipoPrestador?: string;
     page?: number;
@@ -293,6 +311,7 @@ export const cartillaApi = {
   }): Promise<CartillaPrestadorAPI[]> => {
     const url = apiUrl("/prestadores/cartilla");
     if (params.especialidad) url.searchParams.set("especialidad", params.especialidad);
+    if (params.provincia) url.searchParams.set("provincia", params.provincia);
     if (params.localidad) url.searchParams.set("localidad", params.localidad);
     if (params.tipoPrestador) url.searchParams.set("tipoPrestador", params.tipoPrestador);
     if (params.page !== undefined) url.searchParams.set("page", String(params.page));
@@ -597,6 +616,22 @@ export const api = {
   },
 
   // Affiliates
+  validateAffiliateRegistration: async (data: Partial<AffiliateData> & { step: 1 | 2 | 3 | "all" }): Promise<AffiliateRegistrationValidationResponse> => {
+    const response = await fetch(`${API_BASE_URL}/affiliates/register/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json().catch(() => ({ valid: false, errors: [] }));
+    if (!response.ok && !Array.isArray(result.errors)) {
+      throw new Error(result.message ?? "No se pudo validar la solicitud");
+    }
+    return {
+      valid: Boolean(result.valid),
+      errors: Array.isArray(result.errors) ? result.errors : [],
+    };
+  },
+
   registerAffiliate: async (data: AffiliateData) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -617,7 +652,7 @@ export const api = {
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.message ?? "Registration failed");
+      throw Object.assign(new Error(err.message ?? "Registration failed"), err);
     }
     return response.json();
   },

@@ -1,13 +1,97 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, UserRound, MapPin, Phone, Clock,
   ArrowLeft, Search, Stethoscope, ChevronDown, X, ChevronRight, AlertCircle,
 } from "lucide-react";
 import { fetchGeorefProvinces, fetchGeorefLocalities, type GeorefProvince } from "../../../services/georefService";
-import { turnosApi, cartillaApi, type CartillaPrestadorAPI } from "../../../services/api";
+import { turnosApi, cartillaApi, type CartillaLugar, type CartillaPrestadorAPI } from "../../../services/api";
 
 type TabType = "centros" | "prestadores";
+
+type ResultadoUbicado = {
+  item: CartillaPrestadorAPI;
+  lugar: CartillaLugar | null;
+};
+
+type GrupoResultados = {
+  key: string;
+  provincia: string;
+  localidad: string;
+  resultados: ResultadoUbicado[];
+};
+
+const normalizeText = (value?: string) =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase();
+
+const placeMatchesFilters = (lugar: CartillaLugar, provincia: string, localidad: string) => {
+  const lugarProvincia = normalizeText(lugar.provincia);
+  const lugarLocalidad = normalizeText(lugar.localidad);
+  const selectedProvincia = normalizeText(provincia);
+  const selectedLocalidad = normalizeText(localidad);
+
+  if (selectedProvincia && !lugarProvincia.includes(selectedProvincia)) return false;
+  if (selectedLocalidad && !lugarLocalidad.includes(selectedLocalidad)) return false;
+  return true;
+};
+
+const groupResultsByLocation = (
+  resultados: CartillaPrestadorAPI[],
+  provincia: string,
+  localidad: string,
+): GrupoResultados[] => {
+  const groups = new Map<string, GrupoResultados>();
+
+  resultados.forEach((item) => {
+    const matchingPlaces = item.lugaresAtencion.filter((lugar) => placeMatchesFilters(lugar, provincia, localidad));
+    const places = matchingPlaces.length > 0 ? matchingPlaces : item.lugaresAtencion;
+
+    if (places.length === 0) {
+      const key = "Sin provincia|Sin localidad";
+      if (!groups.has(key)) {
+        groups.set(key, { key, provincia: "Sin provincia", localidad: "Sin localidad", resultados: [] });
+      }
+      groups.get(key)!.resultados.push({ item, lugar: null });
+      return;
+    }
+
+    places.forEach((lugar) => {
+      const provinceLabel = lugar.provincia || "Sin provincia";
+      const localityLabel = lugar.localidad || "Sin localidad";
+      const key = `${provinceLabel}|${localityLabel}`;
+      if (!groups.has(key)) {
+        groups.set(key, { key, provincia: provinceLabel, localidad: localityLabel, resultados: [] });
+      }
+      groups.get(key)!.resultados.push({ item, lugar });
+    });
+  });
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      resultados: group.resultados.sort((a, b) => a.item.nombreCompleto.localeCompare(b.item.nombreCompleto, "es")),
+    }))
+    .sort((a, b) => {
+      const byProvince = a.provincia.localeCompare(b.provincia, "es");
+      if (byProvince !== 0) return byProvince;
+      return a.localidad.localeCompare(b.localidad, "es");
+    });
+};
+
+const buildEmptyMessage = (tab: TabType, especialidad: string, provincia: string, localidad: string) => {
+  const tipo = tab === "centros" ? "centros médicos" : "prestadores";
+  const filtros = [
+    especialidad ? `especialidad ${especialidad}` : "",
+    provincia ? `provincia ${provincia}` : "",
+    localidad ? `localidad ${localidad}` : "",
+  ].filter(Boolean).join(", ");
+
+  return `No se encontraron ${tipo}${filtros ? ` para ${filtros}` : ""}.`;
+};
 
 
 function Combobox({
@@ -224,7 +308,8 @@ export function ConsultarCartilla() {
   const [localidades, setLocalidades] = useState<string[]>([]);
   const [especialidades, setEspecialidades] = useState<string[]>([]);
 
-  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingProvinces, setLoadingProvinces] = useState(true);
+  const [loadingSpecialties, setLoadingSpecialties] = useState(true);
   const [loadingLocalities, setLoadingLocalities] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,20 +317,30 @@ export function ConsultarCartilla() {
   const [resultados, setResultados] = useState<CartillaPrestadorAPI[] | null>(null);
   const [detalle, setDetalle] = useState<CartillaPrestadorAPI | null>(null);
 
-  const puedesBuscar = provincia !== "" && localidad !== "" && especialidad !== "";
+  const puedesBuscar = especialidad.trim() !== "";
+  const filtrosActivos = [provincia, localidad].filter(Boolean).length;
+  const gruposResultados = useMemo(
+    () => groupResultsByLocation(resultados || [], provincia, localidad),
+    [resultados, provincia, localidad],
+  );
+  const resumenBusqueda = [
+    especialidad ? `Especialidad: ${especialidad}` : "",
+    provincia ? `Provincia: ${provincia}` : "Todas las provincias",
+    localidad ? `Localidad: ${localidad}` : "Todas las localidades",
+  ].filter(Boolean).join(" · ");
 
   useEffect(() => {
-    setLoadingProvinces(true);
-    Promise.all([
-      fetchGeorefProvinces(),
-      turnosApi.getEspecialidades(),
-    ])
-      .then(([provs, esps]) => {
+    fetchGeorefProvinces()
+      .then((provs) => {
         setProvincias(provs);
-        setEspecialidades(esps.map((e) => e.nombre));
       })
-      .catch(() => setError("No se pudieron cargar los datos iniciales."))
+      .catch(() => setError("No se pudieron cargar las provincias. Podés buscar solo por especialidad."))
       .finally(() => setLoadingProvinces(false));
+
+    turnosApi.getEspecialidades()
+      .then((esps) => setEspecialidades(esps.map((e) => e.nombre).sort((a, b) => a.localeCompare(b, "es"))))
+      .catch(() => setError("No se pudieron cargar las especialidades."))
+      .finally(() => setLoadingSpecialties(false));
   }, []);
 
   const handleTabChange = (nuevaTab: TabType) => {
@@ -273,6 +368,7 @@ export function ConsultarCartilla() {
     setLocalidad("");
     setLocalidades([]);
     setResultados(null);
+    setError(null);
 
     if (!nombreProvincia) return;
     const found = provincias.find((p) => p.nombre === nombreProvincia);
@@ -285,19 +381,34 @@ export function ConsultarCartilla() {
       .finally(() => setLoadingLocalities(false));
   };
 
+  const handleLimpiarFiltros = () => {
+    setProvincia("");
+    setLocalidad("");
+    setLocalidades([]);
+    setEspecialidad("");
+    setResultados(null);
+    setError(null);
+  };
+
   const handleBuscar = async () => {
-    if (!puedesBuscar || !tab) return;
+    if (!tab) return;
+    if (!especialidad.trim()) {
+      setError("Seleccioná una especialidad para buscar en la cartilla.");
+      return;
+    }
     setLoadingSearch(true);
     setResultados(null);
     setError(null);
 
     try {
       const data = await cartillaApi.buscar({
-        especialidad,
-        localidad,
+        especialidad: especialidad.trim(),
+        provincia: provincia || undefined,
+        localidad: localidad || undefined,
         tipoPrestador: tab === "centros" ? "centro_medico" : "profesional",
+        limit: 100,
       });
-      setResultados(data);
+      setResultados([...data].sort((a, b) => a.nombreCompleto.localeCompare(b.nombreCompleto, "es")));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ocurrió un error al buscar. Intentá nuevamente.");
     } finally {
@@ -372,14 +483,43 @@ export function ConsultarCartilla() {
       {/* Panel de filtros */}
       {tab && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6 animate-in fade-in slide-in-from-top-2 duration-200">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-            Filtros de búsqueda
-          </h2>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div>
+              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                Buscar por especialidad
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Provincia y localidad son opcionales para refinar resultados.
+              </p>
+            </div>
+            {(especialidad || provincia || localidad) && (
+              <button
+                type="button"
+                onClick={handleLimpiarFiltros}
+                className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-[11px] font-bold uppercase tracking-wider text-gray-500 hover:text-unahur hover:border-unahur/30 transition-colors"
+              >
+                <X size={13} /> Limpiar filtros
+              </button>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="flex flex-col gap-1.5 sm:col-span-1">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                Especialidad <span className="text-unahur">obligatoria</span>
+              </label>
+              <Combobox
+                options={especialidades}
+                value={especialidad}
+                onChange={(v) => { setEspecialidad(v); setResultados(null); setError(null); }}
+                placeholder="Buscar especialidad..."
+                loading={loadingSpecialties}
+              />
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                Provincia
+                Provincia <span className="text-gray-300">opcional</span>
               </label>
               <Combobox
                 options={provincias.map((p) => p.nombre)}
@@ -392,30 +532,27 @@ export function ConsultarCartilla() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                Localidad
+                Localidad <span className="text-gray-300">opcional</span>
               </label>
               <Combobox
                 options={localidades}
                 value={localidad}
-                onChange={(v) => { setLocalidad(v); setResultados(null); }}
+                onChange={(v) => { setLocalidad(v); setResultados(null); setError(null); }}
                 placeholder="Buscar localidad..."
                 disabled={!provincia}
                 loading={loadingLocalities}
               />
             </div>
+          </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                Especialidad
-              </label>
-              <Combobox
-                options={especialidades}
-                value={especialidad}
-                onChange={(v) => { setEspecialidad(v); setResultados(null); }}
-                placeholder="Buscar especialidad..."
-                disabled={!localidad}
-              />
-            </div>
+          <div className="flex items-center justify-between gap-3 mb-4 rounded-xl bg-gray-50 px-3 py-2">
+            <p className="text-xs text-gray-500">
+              {especialidad
+                ? filtrosActivos > 0
+                  ? `Se buscará ${especialidad} con ${filtrosActivos} filtro${filtrosActivos > 1 ? "s" : ""} de ubicación.`
+                  : `Se buscará ${especialidad} en toda la cartilla disponible.`
+                : "Elegí una especialidad para habilitar la búsqueda."}
+            </p>
           </div>
 
           <button
@@ -440,75 +577,98 @@ export function ConsultarCartilla() {
       )}
 
       {/* Resultados */}
-      {resultados !== null && (
+      {resultados !== null && tab && (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-200">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Resultados</h2>
-            <span className="text-xs font-semibold text-unahur bg-unahur/10 px-2.5 py-1 rounded-full">
-              {resultados.length} encontrado{resultados.length !== 1 ? "s" : ""}
+            <div>
+              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Resultados</h2>
+              {resumenBusqueda && (
+                <p className="text-xs text-gray-400 mt-1">{resumenBusqueda}</p>
+              )}
+            </div>
+            <span className="text-xs font-semibold text-unahur bg-unahur/10 px-2.5 py-1 rounded-full whitespace-nowrap">
+              {resultados.length} resultado{resultados.length !== 1 ? "s" : ""}
             </span>
           </div>
 
           {resultados.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
               <Stethoscope size={32} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-gray-500">No se encontraron {tab === "centros" ? "centros médicos" : "prestadores"} en la zona indicada</p>
+              <p className="text-sm font-semibold text-gray-500">
+                {buildEmptyMessage(tab, especialidad, provincia, localidad)}
+              </p>
               <p className="text-xs text-gray-400 mt-1">
-                Probá con otra localidad o especialidad.
+                Probá limpiando Provincia/Localidad o buscando otra especialidad.
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {resultados.map((item) => {
-                const lugar = item.lugaresAtencion[0];
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setDetalle(item)}
-                    className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-5
-                      hover:shadow-md hover:border-unahur/20 active:scale-[0.99] transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="bg-unahur/10 text-unahur p-2.5 rounded-xl flex-shrink-0">
-                          {item.tipoPrestador === "centro_medico" ? <Building2 size={18} /> : <UserRound size={18} />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-800 text-sm truncate">{item.nombreCompleto}</p>
-                          <div className="flex flex-wrap gap-1 mt-1.5">
-                            {item.especialidades.map((esp) => (
-                              <span
-                                key={esp}
-                                className="text-[9px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full"
-                              >
-                                {esp}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
+            <div className="flex flex-col gap-5">
+              {gruposResultados.map((grupo) => (
+                <section key={grupo.key} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <MapPin size={14} className="text-unahur flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-gray-700 truncate">{grupo.localidad}</p>
+                        <p className="text-[11px] font-semibold text-gray-400 truncate">{grupo.provincia}</p>
                       </div>
-                      <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
                     </div>
+                    <span className="text-[11px] font-bold text-gray-400 whitespace-nowrap">
+                      {grupo.resultados.length} opción{grupo.resultados.length !== 1 ? "es" : ""}
+                    </span>
+                  </div>
 
-                    {(lugar || item.telefono) && (
-                      <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-x-4 gap-y-1.5">
-                        {lugar && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <MapPin size={11} className="text-gray-400 flex-shrink-0" />
-                            <span className="truncate">{lugar.calle}</span>
+                  <div className="flex flex-col gap-3">
+                    {grupo.resultados.map(({ item, lugar }, index) => (
+                      <button
+                        key={`${grupo.key}-${item.id}-${index}`}
+                        onClick={() => setDetalle(item)}
+                        className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-5
+                          hover:shadow-md hover:border-unahur/20 active:scale-[0.99] transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="bg-unahur/10 text-unahur p-2.5 rounded-xl flex-shrink-0">
+                              {item.tipoPrestador === "centro_medico" ? <Building2 size={18} /> : <UserRound size={18} />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-800 text-sm truncate">{item.nombreCompleto}</p>
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {item.especialidades.map((esp) => (
+                                  <span
+                                    key={esp}
+                                    className="text-[9px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full"
+                                  >
+                                    {esp}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
+                        </div>
+
+                        {(lugar || item.telefono) && (
+                          <div className="mt-3 pt-3 border-t border-gray-50 flex flex-wrap gap-x-4 gap-y-1.5">
+                            {lugar && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0">
+                                <MapPin size={11} className="text-gray-400 flex-shrink-0" />
+                                <span className="truncate">{[lugar.calle, lugar.localidad, lugar.provincia].filter(Boolean).join(", ")}</span>
+                              </div>
+                            )}
+                            {item.telefono && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <Phone size={11} className="text-gray-400 flex-shrink-0" />
+                                <span>{item.telefono}</span>
+                              </div>
+                            )}
                           </div>
                         )}
-                        {item.telefono && (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <Phone size={11} className="text-gray-400 flex-shrink-0" />
-                            <span>{item.telefono}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </div>
