@@ -56,6 +56,15 @@ function getDoctorTitle(usuario) {
   return 'Dr/a.'
 }
 
+function getDashboardDateLabel() {
+  return new Intl.DateTimeFormat('es-AR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date())
+}
+
 function PeriodDropdown() {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState(PERIOD_OPTIONS[0])
@@ -359,6 +368,7 @@ export default function Dashboard() {
   const nombreCompleto = getFullName(usuario)
   const tituloProfesional = getDoctorTitle(usuario)
   const [data, setData] = useState<any>(null)
+  const fechaDashboard = getDashboardDateLabel()
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9002'
@@ -373,10 +383,9 @@ export default function Dashboard() {
   const kpis = [
     {
       title: 'Solicitudes pendientes',
-      value: data.pendientes,
+      value: data.pendientes ?? 0,
       targetEstado: 'Pendiente',
-      change: 12,
-      changeLabel: 'vs. semana anterior',
+      changeLabel: 'Solicitudes sin resolver',
       colorClass: 'text-amber-600',
       bgClass: 'bg-amber-50',
       borderClass: 'border-amber-100',
@@ -388,10 +397,9 @@ export default function Dashboard() {
     },
     {
       title: 'En análisis',
-      value: 14,
+      value: data.enAnalisis ?? 0,
       targetEstado: 'En análisis',
-      change: -5,
-      changeLabel: 'vs. semana anterior',
+      changeLabel: 'Solicitudes en revisión',
       colorClass: 'text-indigo-600',
       bgClass: 'bg-indigo-50',
       borderClass: 'border-indigo-100',
@@ -403,10 +411,9 @@ export default function Dashboard() {
     },
     {
       title: 'Observadas',
-      value: data.observadas,
+      value: data.observadas ?? 0,
       targetEstado: 'Observada',
-      change: -18,
-      changeLabel: 'vs. semana anterior',
+      changeLabel: 'Esperan información adicional',
       colorClass: 'text-rose-600',
       bgClass: 'bg-rose-50',
       borderClass: 'border-rose-100',
@@ -418,9 +425,8 @@ export default function Dashboard() {
     },
     {
       title: 'Resueltas',
-      value: 143,
+      value: data.resueltas ?? 0,
       targetEstado: 'Resueltas',
-      change: 8,
       changeLabel: 'aprobadas + rechazadas',
       colorClass: 'text-emerald-600',
       bgClass: 'bg-emerald-50',
@@ -444,7 +450,7 @@ export default function Dashboard() {
       <header className="bg-white border-b border-slate-100 px-4 sm:px-8 py-4 flex flex-wrap gap-3 items-start sm:items-center sm:justify-between sticky top-0 z-50">
         <div className="min-w-0 flex-1 sm:flex-none">
           <h1 className="text-lg font-700 text-slate-800">Dashboard</h1>
-          <p className="text-xs text-slate-400">Lunes, 04/13/2026</p>
+          <p className="text-xs text-slate-400 capitalize">{fechaDashboard}</p>
         </div>
         <div className="sm:hidden flex items-center gap-2">
           <NotificationsBell />
@@ -466,7 +472,7 @@ export default function Dashboard() {
           <div className="relative z-10">
             <p className="text-teal-100 text-sm font-500 mb-1">Bienvenido/a al portal</p>
             <h2 className="text-white text-xl font-700">Bienvenido/a, {tituloProfesional} {nombreCompleto}</h2>
-            <p className="text-teal-100 text-sm mt-1">Tenés <span className="text-white font-600">{data.pendientes} solicitudes pendientes</span> y {data.observadas} observadas</p>
+            <p className="text-teal-100 text-sm mt-1">Tenés <span className="text-white font-600">{data.pendientes ?? 0} solicitudes pendientes</span> y {data.observadas ?? 0} observadas</p>
           </div>
           <div className="absolute right-0 top-0 w-64 h-64 bg-teal-400/30 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="absolute right-16 bottom-0 w-32 h-32 bg-teal-400/20 rounded-full translate-y-1/2" />
@@ -498,9 +504,10 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <RequestsChart />
+            <RequestsChart evolucion={data.evolucionSolicitudes} />
           </div>
           <QuickActions
+            stats={data}
             onAction={(id) => {
               if (id === 'nueva') navigate('/prestadores/solicitudes', { state: { openNueva: true } })
               if (id === 'analisis') navigate('/prestadores/solicitudes', { state: { tab: 'analisis' } })

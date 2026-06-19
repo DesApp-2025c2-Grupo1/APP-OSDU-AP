@@ -571,7 +571,7 @@ export default function Solicitudes() {
     return toDateInputValue(value) || value
   }
 
-  async function cambiarEstado(id, nuevoEstado, motivo = '', origen = '') {
+  async function cambiarEstado(id, nuevoEstado, motivo = '', origen = '', extra = {}) {
     try {
       setError('')
       const solActual = data.find(s => s.id === id)
@@ -584,7 +584,7 @@ export default function Solicitudes() {
       const res = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado, motivo }),
+        body: JSON.stringify({ estado: nuevoEstado, motivo, ...extra }),
         credentials: 'include'
       })
       const json = await res.json().catch(() => ({}))
@@ -603,7 +603,7 @@ export default function Solicitudes() {
       <DetalleSolicitud
         solicitud={solActualizada}
         onVolver={() => setDetalle(null)}
-        onCambiarEstado={(id, estado, motivo) => cambiarEstado(id, estado, motivo, solActualizada.origen)}
+        onCambiarEstado={(id, estado, motivo, extra) => cambiarEstado(id, estado, motivo, solActualizada.origen, extra)}
       />
     )
   }

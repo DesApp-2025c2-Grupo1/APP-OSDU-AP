@@ -3,7 +3,7 @@ const actions = [
   {
     id: 'analisis',
     label: 'Ver en análisis',
-    description: '14 solicitudes en revisión',
+    descriptionKey: 'analisis',
     colorClass: 'text-indigo-600',
     bgClass: 'bg-indigo-50',
     hoverBg: 'hover:bg-indigo-600',
@@ -16,7 +16,7 @@ const actions = [
   {
     id: 'observadas',
     label: 'Ver observadas',
-    description: '6 requieren atención',
+    descriptionKey: 'observadas',
     colorClass: 'text-rose-600',
     bgClass: 'bg-rose-50',
     hoverBg: 'hover:bg-rose-600',
@@ -29,7 +29,7 @@ const actions = [
   {
     id: 'nueva',
     label: 'Nueva solicitud',
-    description: 'Crear y enviar',
+    descriptionKey: 'nueva',
     colorClass: 'text-teal-600',
     bgClass: 'bg-teal-50',
     hoverBg: 'hover:bg-teal-600',
@@ -42,7 +42,7 @@ const actions = [
   {
     id: 'turno',
     label: 'Pedir turno',
-    description: 'Agenda disponible',
+    descriptionKey: 'turno',
     colorClass: 'text-amber-600',
     bgClass: 'bg-amber-50',
     hoverBg: 'hover:bg-amber-600',
@@ -54,7 +54,16 @@ const actions = [
   },
 ]
 
-export default function QuickActions({ onAction }) {
+const buildDescriptions = (stats = {}) => ({
+  analisis: `${Number(stats.enAnalisis || 0)} solicitudes en revisión`,
+  observadas: `${Number(stats.observadas || 0)} requieren atención`,
+  nueva: 'Crear y enviar',
+  turno: 'Agenda disponible',
+})
+
+export default function QuickActions({ onAction, stats }) {
+  const descriptions = buildDescriptions(stats)
+
   return (
     <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-100 shadow-sm">
       <div className="mb-5">
@@ -81,7 +90,7 @@ export default function QuickActions({ onAction }) {
                 {action.label}
               </p>
               <p className="text-[11px] sm:text-xs text-slate-400 group-hover:text-white/80 transition-colors mt-0.5 leading-snug">
-                {action.description}
+                {descriptions[action.descriptionKey]}
               </p>
             </div>
           </button>

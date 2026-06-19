@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { CalendarCheck, Save, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
+import { CalendarCheck, Save, Loader2, Search, MapPin, ChevronDown } from "lucide-react";
 import { type Persona } from "./Layout";
 import { turnosApi, type AgendaAPI, type EspecialidadAPI, type SlotDisponible } from "../../../services/api";
 
@@ -23,6 +23,155 @@ const formatearFecha = (fecha: string) => {
 };
 
 const hoy = () => new Date().toISOString().split("T")[0];
+
+function AgendaAutocomplete({
+  agendas,
+  value,
+  disabled,
+  onSelect,
+}: {
+  agendas: AgendaAPI[];
+  value: string;
+  disabled: boolean;
+  onSelect: (agendaId: string) => void;
+}) {
+  const selectedAgenda = agendas.find((agenda) => agenda.id === value) ?? null;
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredAgendas = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    if (!text) return agendas;
+    return agendas.filter((agenda) =>
+      `${agenda.prestador} ${agenda.lugar}`.toLowerCase().includes(text)
+    );
+  }, [agendas, query]);
+
+  const selectAgenda = (agenda: AgendaAPI) => {
+    onSelect(agenda.id);
+    setQuery(agenda.prestador);
+    setOpen(false);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.min(current + 1, Math.max(filteredAgendas.length - 1, 0)));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((current) => Math.max(current - 1, 0));
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (!open) return;
+      event.preventDefault();
+      const agenda = filteredAgendas[activeIndex];
+      if (agenda) selectAgenda(agenda);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setOpen(false);
+      setQuery(selectedAgenda?.prestador || "");
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={open ? query : selectedAgenda?.prestador || ""}
+          disabled={disabled}
+          onFocus={() => {
+            setQuery("");
+            setActiveIndex(0);
+            setOpen(true);
+          }}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActiveIndex(0);
+            setOpen(true);
+            if (value) onSelect("");
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={disabled ? "Seleccioná una especialidad primero" : "Buscar profesional..."}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="agenda-autocomplete-options"
+          aria-activedescendant={open && filteredAgendas[activeIndex] ? `agenda-option-${filteredAgendas[activeIndex].id}` : undefined}
+          className="w-full min-w-0 rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-9 text-sm text-gray-700 outline-none transition-all
+            placeholder:text-gray-400 focus:border-unahur focus:ring-2 focus:ring-unahur/20 disabled:cursor-not-allowed disabled:opacity-40"
+        />
+        <ChevronDown
+          size={15}
+          className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform pointer-events-none ${open ? "rotate-180" : ""}`}
+        />
+      </div>
+
+      {open && !disabled && (
+        <div
+          id="agenda-autocomplete-options"
+          role="listbox"
+          className="absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl"
+        >
+          {filteredAgendas.length === 0 ? (
+            <div className="px-3 py-3 text-center text-xs font-semibold text-gray-400">
+              No se encontraron profesionales
+            </div>
+          ) : (
+            filteredAgendas.map((agenda, index) => (
+              <button
+                key={agenda.id}
+                id={`agenda-option-${agenda.id}`}
+                type="button"
+                role="option"
+                aria-selected={agenda.id === value}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  selectAgenda(agenda);
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+                className={`flex w-full min-w-0 items-start gap-2 px-3 py-2.5 text-left transition-colors ${
+                  index === activeIndex ? "bg-unahur/10" : "hover:bg-gray-50"
+                }`}
+              >
+                <div className="mt-0.5 rounded-lg bg-unahur/10 p-1.5 text-unahur">
+                  <MapPin size={13} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-gray-700">{agenda.prestador}</p>
+                  <p className="mt-0.5 truncate text-xs font-medium text-gray-400">{agenda.lugar || "Lugar de atención sin informar"}</p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado, onReservaExitosa }: ModalReservaTurnoProps) {
   const afiliadoId = activeProfile.id !== userLogueado.id ? activeProfile.id : undefined;
@@ -165,17 +314,17 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
               {loadingAgendas ? (
                 <div className="flex items-center gap-2 text-xs text-gray-400 p-2.5"><Loader2 size={14} className="animate-spin" /> Cargando...</div>
               ) : (
-                <select
+                <AgendaAutocomplete
+                  agendas={agendas}
                   value={agendaId}
                   disabled={!especialidadId}
-                  onChange={(e) => { setAgendaId(e.target.value); setFecha(""); setSlots([]); setSlotSeleccionado(null); }}
-                  className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-unahur outline-none bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <option value="">Seleccionar...</option>
-                  {agendas.map((a) => (
-                    <option key={a.id} value={a.id}>{a.prestador} — {a.lugar}</option>
-                  ))}
-                </select>
+                  onSelect={(nextAgendaId) => {
+                    setAgendaId(nextAgendaId);
+                    setFecha("");
+                    setSlots([]);
+                    setSlotSeleccionado(null);
+                  }}
+                />
               )}
             </div>
 

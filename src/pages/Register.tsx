@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { User, Users, FileText, ChevronRight, Plus, Trash2, CheckCircle2, Upload, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ActivationWaitModal } from "../components/ActivationWaitModal";
@@ -38,6 +38,12 @@ type Step1Errors = {
   nombre?: string; apellido?: string; nroDocumento?: string;
   fechaNacimiento?: string; email?: string; telefono?: string;
 };
+
+type FieldRefKey =
+  | keyof Step1Errors
+  | keyof FamilyMember
+  | "dni_document"
+  | "payslip_document";
 
 function validarPaso1(formData: {
   nombre: string; apellido: string; tipoDocumento: string;
@@ -116,11 +122,12 @@ export function Register() {
   const [step, setStep] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidatingStep, setIsValidatingStep] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [provincias, setProvincias] = useState<GeorefProvince[]>([]);
   const [localidadesPorProvincia, setLocalidadesPorProvincia] = useState<Record<string, GeorefLocality[]>>({});
-  const [loadingGeoref, setLoadingGeoref] = useState(false);
+  const [loadingGeoref, setLoadingGeoref] = useState(true);
   const [loadingLocalidades, setLoadingLocalidades] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
@@ -146,12 +153,24 @@ export function Register() {
   const [fileErrors, setFileErrors] = useState<{ dni?: string; payslip?: string }>({});
   const [familiarErrors, setFamiliarErrors] = useState<{ nombre?: string; apellido?: string; nroDocumento?: string; fechaNacimiento?: string }>({});
 
+  const nombreRef = useRef<HTMLInputElement>(null);
+  const apellidoRef = useRef<HTMLInputElement>(null);
+  const nroDocumentoRef = useRef<HTMLInputElement>(null);
+  const fechaNacimientoRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const telefonoRef = useRef<HTMLInputElement>(null);
+  const familyNombreRef = useRef<HTMLInputElement>(null);
+  const familyApellidoRef = useRef<HTMLInputElement>(null);
+  const familyNroDocumentoRef = useRef<HTMLInputElement>(null);
+  const familyFechaNacimientoRef = useRef<HTMLInputElement>(null);
+  const dniDocumentRef = useRef<HTMLLabelElement>(null);
+  const payslipDocumentRef = useRef<HTMLLabelElement>(null);
+
   const [newFamilyMember, setNewFamilyMember] = useState<FamilyMember>({
     nombre: "", apellido: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "",
   });
 
   useEffect(() => {
-    setLoadingGeoref(true);
     fetchGeorefProvinces()
       .then(setProvincias)
       .catch(() => setSubmitError("No se pudieron cargar las provincias."))
@@ -187,7 +206,23 @@ export function Register() {
     void cargarLocalidades(provinceId);
   };
 
-  const handleAddFamilyMember = () => {
+  const focusField = (field: FieldRefKey | string) => {
+    window.setTimeout(() => {
+      if (field === "nombre") (nombreRef.current || familyNombreRef.current)?.focus();
+      else if (field === "apellido") (apellidoRef.current || familyApellidoRef.current)?.focus();
+      else if (field === "nroDocumento") (nroDocumentoRef.current || familyNroDocumentoRef.current)?.focus();
+      else if (field === "fechaNacimiento") (fechaNacimientoRef.current || familyFechaNacimientoRef.current)?.focus();
+      else if (field === "email") emailRef.current?.focus();
+      else if (field === "telefono") telefonoRef.current?.focus();
+      else if (field === "dni_document") dniDocumentRef.current?.focus();
+      else if (field === "payslip_document") payslipDocumentRef.current?.focus();
+    }, 0);
+  };
+
+  const firstErrorKey = <T extends Record<string, string | undefined>>(errors: T): keyof T | null =>
+    (Object.keys(errors) as Array<keyof T>).find((key) => Boolean(errors[key])) ?? null;
+
+  const validateCurrentFamilyMember = () => {
     const errs: typeof familiarErrors = {};
     const nombreErr = validatePersonName(newFamilyMember.nombre, "nombre");
     if (nombreErr) errs.nombre = nombreErr;
@@ -197,7 +232,49 @@ export function Register() {
     if (docErr) errs.nroDocumento = docErr;
     const fechaErr = validateBirthDate(newFamilyMember.fechaNacimiento || "");
     if (fechaErr) errs.fechaNacimiento = fechaErr;
-    if (Object.keys(errs).length > 0) { setFamiliarErrors(errs); return; }
+    return errs;
+  };
+
+  const hasStartedFamilyMember = () =>
+    Boolean(
+      newFamilyMember.nombre.trim()
+      || newFamilyMember.apellido.trim()
+      || newFamilyMember.nroDocumento.trim()
+      || (newFamilyMember.fechaNacimiento || "").trim()
+    );
+
+  const validateFamilyMemberDocumentAvailability = async (member: FamilyMember, currentMembers = formData.familiares) => {
+    const candidateDocument = String(member.nroDocumento || "").trim();
+    if (!candidateDocument) return null;
+
+    if (candidateDocument === formData.nroDocumento.trim()) {
+      return "El DNI del familiar no puede ser igual al del titular.";
+    }
+
+    if (currentMembers.some((loadedMember) => String(loadedMember.nroDocumento || "").trim() === candidateDocument)) {
+      return "Este DNI ya está cargado en el grupo familiar.";
+    }
+
+    const validation = await api.validateAffiliateRegistration({
+      step: 2,
+      nroDocumento: formData.nroDocumento,
+      tipoDocumento: formData.tipoDocumento,
+      grupoFamiliar: [member],
+    });
+
+    return validation.errors.find((error) => error.field.includes("nroDocumento"))?.message ?? null;
+  };
+
+  const handleAddFamilyMember = async () => {
+    setSubmitError(null);
+    setIsValidatingStep(true);
+    const errs = validateCurrentFamilyMember();
+    if (Object.keys(errs).length > 0) {
+      setFamiliarErrors(errs);
+      focusField(firstErrorKey(errs) as FieldRefKey);
+      setIsValidatingStep(false);
+      return;
+    }
     const member = {
       ...newFamilyMember,
       nombre: newFamilyMember.nombre.trim(),
@@ -205,6 +282,21 @@ export function Register() {
       nombreCompleto: `${newFamilyMember.nombre.trim()} ${newFamilyMember.apellido.trim()}`,
       nroDocumento: newFamilyMember.nroDocumento.trim(),
     };
+
+    try {
+      const documentError = await validateFamilyMemberDocumentAvailability(member);
+      if (documentError) {
+        setFamiliarErrors({ nroDocumento: documentError });
+        focusField("nroDocumento");
+        return;
+      }
+    } catch (err: unknown) {
+      setSubmitError((err as { message?: string }).message || "No se pudo validar el DNI del familiar.");
+      return;
+    } finally {
+      setIsValidatingStep(false);
+    }
+
     setFamiliarErrors({});
     setFormData({ ...formData, familiares: [...formData.familiares, member] });
     setNewFamilyMember({ nombre: "", apellido: "", parentesco: "Hijo/a", nroDocumento: "", fechaNacimiento: "" });
@@ -216,14 +308,96 @@ export function Register() {
     setFormData({ ...formData, familiares: updated });
   };
 
-  const handleNextStep1 = () => {
+  const handleNextStep1 = async () => {
+    setSubmitError(null);
     const errs = validarPaso1(formData);
-    if (Object.keys(errs).length > 0) { setStep1Errors(errs); return; }
+    if (Object.keys(errs).length > 0) {
+      setStep1Errors(errs);
+      focusField(firstErrorKey(errs) as FieldRefKey);
+      return;
+    }
+
+    setIsValidatingStep(true);
+    try {
+      const validation = await api.validateAffiliateRegistration({
+        step: 1,
+        nroDocumento: formData.nroDocumento.trim(),
+        tipoDocumento: formData.tipoDocumento,
+        email: formData.email.trim(),
+      });
+
+      if (!validation.valid) {
+        const nextErrors = validation.errors.reduce<Step1Errors>((acc, error) => {
+          if (error.field === "nroDocumento" || error.field === "email") acc[error.field] = error.message;
+          return acc;
+        }, {});
+        setStep1Errors(nextErrors);
+        const field = firstErrorKey(nextErrors);
+        if (field) focusField(field as FieldRefKey);
+        return;
+      }
+    } catch (err: unknown) {
+      setSubmitError((err as { message?: string }).message || "No se pudo validar la solicitud.");
+      return;
+    } finally {
+      setIsValidatingStep(false);
+    }
+
     setStep1Errors({});
     setStep(2);
   };
 
-  const handleNextStep2 = () => {
+  const handleNextStep2 = async () => {
+    setSubmitError(null);
+    if (hasStartedFamilyMember()) {
+      const errs = validateCurrentFamilyMember();
+      if (Object.keys(errs).length > 0) {
+        setFamiliarErrors(errs);
+        focusField(firstErrorKey(errs) as FieldRefKey);
+        return;
+      }
+
+      setIsValidatingStep(true);
+      try {
+        const documentError = await validateFamilyMemberDocumentAvailability(newFamilyMember);
+        if (documentError) {
+          setFamiliarErrors({ nroDocumento: documentError });
+          focusField("nroDocumento");
+          return;
+        }
+      } catch (err: unknown) {
+        setSubmitError((err as { message?: string }).message || "No se pudo validar el DNI del familiar.");
+        return;
+      } finally {
+        setIsValidatingStep(false);
+      }
+
+      setSubmitError("Agregá el integrante al grupo familiar o borrá esos datos antes de continuar.");
+      focusField("nombre");
+      return;
+    }
+
+    setIsValidatingStep(true);
+    try {
+      const validation = await api.validateAffiliateRegistration({
+        step: 2,
+        nroDocumento: formData.nroDocumento,
+        tipoDocumento: formData.tipoDocumento,
+        grupoFamiliar: formData.familiares,
+      });
+      const documentError = validation.errors.find((error) => error.field.includes("nroDocumento"));
+      if (documentError) {
+        setSubmitError(documentError.message);
+        focusField("nroDocumento");
+        return;
+      }
+    } catch (err: unknown) {
+      setSubmitError((err as { message?: string }).message || "No se pudo validar el grupo familiar.");
+      return;
+    } finally {
+      setIsValidatingStep(false);
+    }
+
     setFamiliarErrors({});
     setStep(3);
   };
@@ -234,12 +408,43 @@ export function Register() {
     const payErr = validarArchivo(formData.payslip_document);
     if (dniErr || payErr) {
       setFileErrors({ dni: dniErr ?? undefined, payslip: payErr ?? undefined });
+      focusField(dniErr ? "dni_document" : "payslip_document");
       return;
     }
     setFileErrors({});
     setIsLoading(true);
     setSubmitError(null);
     try {
+      const validation = await api.validateAffiliateRegistration({
+        step: "all",
+        nroDocumento: formData.nroDocumento.trim(),
+        tipoDocumento: formData.tipoDocumento,
+        email: formData.email.trim(),
+        grupoFamiliar: formData.familiares,
+      });
+
+      if (!validation.valid) {
+        const holderErrors = validation.errors.reduce<Step1Errors>((acc, error) => {
+          if (error.field === "nroDocumento" || error.field === "email") acc[error.field] = error.message;
+          return acc;
+        }, {});
+        const holderField = firstErrorKey(holderErrors);
+        if (holderField) {
+          setStep1Errors(holderErrors);
+          setStep(1);
+          focusField(holderField as FieldRefKey);
+          return;
+        }
+
+        const familyError = validation.errors.find((error) => error.field.includes("grupoFamiliar"));
+        if (familyError) {
+          setSubmitError(familyError.message);
+          setStep(2);
+          focusField("nroDocumento");
+          return;
+        }
+      }
+
       await api.registerAffiliate({
         idPlan: formData.idPlan,
         nroDocumento: formData.nroDocumento,
@@ -260,7 +465,15 @@ export function Register() {
       });
       setIsModalOpen(true);
     } catch (err: unknown) {
-      setSubmitError((err as { message?: string }).message || "Hubo un error al procesar tu afiliación. Intentá de nuevo.");
+      const apiError = err as { message?: string; field?: string; errors?: Array<{ field: string; message: string }> };
+      const fieldError = apiError.errors?.[0] ?? (apiError.field && apiError.message ? { field: apiError.field, message: apiError.message } : null);
+      if (fieldError?.field === "nroDocumento" || fieldError?.field === "email") {
+        setStep1Errors({ [fieldError.field]: fieldError.message });
+        setStep(1);
+        focusField(fieldError.field);
+        return;
+      }
+      setSubmitError(apiError.message || "Hubo un error al procesar tu afiliación. Intentá de nuevo.");
     } finally {
       setIsLoading(false);
     }
@@ -387,6 +600,7 @@ export function Register() {
                     <div>
                       <label className={labelClass}>Nombre</label>
                       <input
+                        ref={nombreRef}
                         type="text" value={formData.nombre}
                         onChange={(e) => { setFormData({ ...formData, nombre: e.target.value }); clearStep1Error("nombre"); }}
                         className={step1Errors.nombre ? inputErr : inputOk}
@@ -397,6 +611,7 @@ export function Register() {
                     <div>
                       <label className={labelClass}>Apellido</label>
                       <input
+                        ref={apellidoRef}
                         type="text" value={formData.apellido}
                         onChange={(e) => { setFormData({ ...formData, apellido: e.target.value }); clearStep1Error("apellido"); }}
                         className={step1Errors.apellido ? inputErr : inputOk}
@@ -421,6 +636,7 @@ export function Register() {
                     <div>
                       <label className={labelClass}>Número</label>
                       <input
+                        ref={nroDocumentoRef}
                         type="text" value={formData.nroDocumento}
                         onChange={(e) => { setFormData({ ...formData, nroDocumento: e.target.value }); clearStep1Error("nroDocumento"); }}
                         className={step1Errors.nroDocumento ? inputErr : inputOk}
@@ -434,6 +650,7 @@ export function Register() {
                     <div>
                       <label className={labelClass}>Fecha de nacimiento</label>
                       <input
+                        ref={fechaNacimientoRef}
                         type="date" value={formData.fechaNacimiento}
                         onChange={(e) => { setFormData({ ...formData, fechaNacimiento: e.target.value }); clearStep1Error("fechaNacimiento"); }}
                         className={step1Errors.fechaNacimiento ? inputErr : inputOk}
@@ -459,6 +676,7 @@ export function Register() {
                   <div>
                     <label className={labelClass}>Correo electrónico</label>
                     <input
+                      ref={emailRef}
                       type="email" value={formData.email}
                       onChange={(e) => { setFormData({ ...formData, email: e.target.value }); clearStep1Error("email"); }}
                       className={step1Errors.email ? inputErr : inputOk}
@@ -470,6 +688,7 @@ export function Register() {
                   <div>
                     <label className={labelClass}>Teléfono</label>
                     <input
+                      ref={telefonoRef}
                       type="tel" value={formData.telefono}
                       onChange={(e) => { setFormData({ ...formData, telefono: e.target.value }); clearStep1Error("telefono"); }}
                       className={step1Errors.telefono ? inputErr : inputOk}
@@ -547,9 +766,10 @@ export function Register() {
                   <button
                     type="button"
                     onClick={handleNextStep1}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-unahur text-white rounded-xl font-bold text-sm shadow-lg shadow-unahur/20 hover:bg-green-700 active:scale-[0.98] transition-all"
+                    disabled={isValidatingStep}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-unahur text-white rounded-xl font-bold text-sm shadow-lg shadow-unahur/20 hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Siguiente paso <ChevronRight size={18} />
+                    {isValidatingStep ? "Validando..." : <>Siguiente paso <ChevronRight size={18} /></>}
                   </button>
                 </div>
               )}
@@ -581,6 +801,7 @@ export function Register() {
 	                    <div className="grid grid-cols-2 gap-3">
 	                      <div>
 	                        <input
+                            ref={familyNombreRef}
 	                          type="text" value={newFamilyMember.nombre}
 	                          onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, nombre: e.target.value }); setFamiliarErrors((p) => ({ ...p, nombre: undefined })); }}
 	                          className={familiarErrors.nombre ? inputErr : inputOk}
@@ -590,6 +811,7 @@ export function Register() {
 	                      </div>
 	                      <div>
 	                        <input
+                            ref={familyApellidoRef}
 	                          type="text" value={newFamilyMember.apellido}
 	                          onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, apellido: e.target.value }); setFamiliarErrors((p) => ({ ...p, apellido: undefined })); }}
 	                          className={familiarErrors.apellido ? inputErr : inputOk}
@@ -601,6 +823,7 @@ export function Register() {
 	                    <div className="grid grid-cols-2 gap-3">
 	                      <div>
 	                        <input
+                            ref={familyNroDocumentoRef}
 	                          type="text" value={newFamilyMember.nroDocumento}
                           onChange={(e) => { setNewFamilyMember({ ...newFamilyMember, nroDocumento: e.target.value }); setFamiliarErrors((p) => ({ ...p, nroDocumento: undefined })); }}
                           className={familiarErrors.nroDocumento ? inputErr : inputOk}
@@ -625,6 +848,7 @@ export function Register() {
                           Fecha de nacimiento
                         </label>
                         <input
+                          ref={familyFechaNacimientoRef}
                           type="date"
                           value={newFamilyMember.fechaNacimiento || ""}
                           onChange={(e) => {
@@ -641,9 +865,10 @@ export function Register() {
                       <button
                         type="button"
                         onClick={handleAddFamilyMember}
-                        className="px-4 py-3 bg-unahur text-white rounded-xl hover:bg-green-700 transition-colors flex items-center gap-1.5 text-sm font-semibold"
+                        disabled={isValidatingStep}
+                        className="px-4 py-3 bg-unahur text-white rounded-xl hover:bg-green-700 transition-colors flex items-center gap-1.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Plus size={16} /> Agregar
+                        <Plus size={16} /> {isValidatingStep ? "Validando..." : "Agregar"}
                       </button>
                     </div>
                   </div>
@@ -652,8 +877,8 @@ export function Register() {
                     <button type="button" onClick={() => setStep(1)} className="w-1/3 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
                       Volver
                     </button>
-                    <button type="button" onClick={handleNextStep2} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-unahur text-white rounded-xl font-bold text-sm shadow-lg shadow-unahur/20 hover:bg-green-700 active:scale-[0.98] transition-all">
-                      Siguiente paso <ChevronRight size={18} />
+                    <button type="button" onClick={handleNextStep2} disabled={isValidatingStep} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-unahur text-white rounded-xl font-bold text-sm shadow-lg shadow-unahur/20 hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isValidatingStep ? "Validando..." : <>Siguiente paso <ChevronRight size={18} /></>}
                     </button>
                   </div>
                 </div>
@@ -670,6 +895,8 @@ export function Register() {
                     <div key={key}>
                       <label className={labelClass}>{label}</label>
                       <label
+                        ref={key === "dni_document" ? dniDocumentRef : payslipDocumentRef}
+                        tabIndex={0}
                         className={`flex items-center gap-4 w-full px-4 py-4 rounded-xl border-2 border-dashed cursor-pointer transition-all
                           ${fileErrors[errKey] ? "border-red-300 bg-red-50/30" : formData[key] ? "border-unahur/40 bg-unahur/5" : "border-slate-200 bg-gray-50 hover:border-unahur/30 hover:bg-unahur/5"}`}
                       >
