@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
-import { CalendarCheck, Save, Loader2, Search, MapPin, ChevronDown } from "lucide-react";
+import { CalendarCheck, Save, Loader2, Search, MapPin, ChevronDown, Clock } from "lucide-react";
 import { type Persona } from "./Layout";
 import { turnosApi, type AgendaAPI, type EspecialidadAPI, type SlotDisponible } from "../../../services/api";
 
@@ -23,6 +23,179 @@ const formatearFecha = (fecha: string) => {
 };
 
 const hoy = () => new Date().toISOString().split("T")[0];
+
+const getSlotKey = (slot: SlotDisponible) => `${slot.horaIni}|${slot.horaFin}`;
+
+const getHourFromSlot = (slot: SlotDisponible) => Number(slot.horaIni.split(":")[0] ?? 0);
+
+const groupSlotsByDayPeriod = (slots: SlotDisponible[]) => {
+  const groups = [
+    { id: "manana", label: "Mañana", slots: [] as SlotDisponible[] },
+    { id: "tarde", label: "Tarde", slots: [] as SlotDisponible[] },
+    { id: "noche", label: "Noche", slots: [] as SlotDisponible[] },
+  ];
+
+  slots.forEach((slot) => {
+    const hour = getHourFromSlot(slot);
+    if (hour < 12) {
+      groups[0].slots.push(slot);
+      return;
+    }
+
+    if (hour < 18) {
+      groups[1].slots.push(slot);
+      return;
+    }
+
+    groups[2].slots.push(slot);
+  });
+
+  return groups.filter((group) => group.slots.length > 0);
+};
+
+function SpecialtyAutocomplete({
+  especialidades,
+  value,
+  disabled,
+  onSelect,
+}: {
+  especialidades: EspecialidadAPI[];
+  value: number | "";
+  disabled: boolean;
+  onSelect: (especialidadId: number | "") => void;
+}) {
+  const selectedSpecialty = especialidades.find((especialidad) => especialidad.id === value) ?? null;
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredSpecialties = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    if (!text) return especialidades;
+    return especialidades.filter((especialidad) => especialidad.nombre.toLowerCase().includes(text));
+  }, [especialidades, query]);
+
+  const selectSpecialty = (especialidad: EspecialidadAPI) => {
+    onSelect(especialidad.id);
+    setQuery(especialidad.nombre);
+    setOpen(false);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.min(current + 1, Math.max(filteredSpecialties.length - 1, 0)));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((current) => Math.max(current - 1, 0));
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (!open) return;
+      event.preventDefault();
+      const especialidad = filteredSpecialties[activeIndex];
+      if (especialidad) selectSpecialty(especialidad);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setOpen(false);
+      setQuery(selectedSpecialty?.nombre || "");
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={open ? query : selectedSpecialty?.nombre || ""}
+          disabled={disabled}
+          onFocus={() => {
+            setQuery("");
+            setActiveIndex(0);
+            setOpen(true);
+          }}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActiveIndex(0);
+            setOpen(true);
+            if (value) onSelect("");
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={disabled ? "Cargando especialidades..." : "Buscar especialidad..."}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="specialty-autocomplete-options"
+          aria-activedescendant={open && filteredSpecialties[activeIndex] ? `specialty-option-${filteredSpecialties[activeIndex].id}` : undefined}
+          className="w-full min-w-0 rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-9 text-sm text-gray-700 outline-none transition-all
+            placeholder:text-gray-400 focus:border-unahur focus:ring-2 focus:ring-unahur/20 disabled:cursor-not-allowed disabled:opacity-40"
+        />
+        <ChevronDown
+          size={15}
+          className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform pointer-events-none ${open ? "rotate-180" : ""}`}
+        />
+      </div>
+
+      {open && !disabled && (
+        <div
+          id="specialty-autocomplete-options"
+          role="listbox"
+          className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl"
+        >
+          {filteredSpecialties.length === 0 ? (
+            <div className="px-3 py-3 text-center text-xs font-semibold text-gray-400">
+              No se encontraron especialidades
+            </div>
+          ) : (
+            filteredSpecialties.map((especialidad, index) => (
+              <button
+                key={especialidad.id}
+                id={`specialty-option-${especialidad.id}`}
+                type="button"
+                role="option"
+                aria-selected={especialidad.id === value}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  selectSpecialty(especialidad);
+                }}
+                onMouseEnter={() => setActiveIndex(index)}
+                className={`flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left transition-colors ${
+                  index === activeIndex ? "bg-unahur/10" : "hover:bg-gray-50"
+                }`}
+              >
+                <div className="rounded-lg bg-unahur/10 p-1.5 text-unahur">
+                  <Search size={13} />
+                </div>
+                <p className="truncate text-sm font-bold text-gray-700">{especialidad.nombre}</p>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function AgendaAutocomplete({
   agendas,
@@ -234,6 +407,7 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
   }, [agendaId, fecha]);
 
   const agendaSeleccionada = agendas.find((a) => a.id === agendaId) ?? null;
+  const slotsAgrupados = useMemo(() => groupSlotsByDayPeriod(slots), [slots]);
   const puedeConfirmar = especialidadId && agendaId && fecha && slotSeleccionado;
 
   const handleConfirmar = async () => {
@@ -297,14 +471,12 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
               {loadingEsp ? (
                 <div className="flex items-center gap-2 text-xs text-gray-400 p-2.5"><Loader2 size={14} className="animate-spin" /> Cargando...</div>
               ) : (
-                <select
+                <SpecialtyAutocomplete
+                  especialidades={especialidades}
                   value={especialidadId}
-                  onChange={(e) => setEspecialidadId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-unahur outline-none bg-white"
-                >
-                  <option value="">Seleccionar...</option>
-                  {especialidades.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </select>
+                  disabled={loadingEsp}
+                  onSelect={setEspecialidadId}
+                />
               )}
             </div>
 
@@ -341,33 +513,70 @@ export function ModalReservaTurno({ isOpen, onClose, activeProfile, userLogueado
               />
             </div>
 
-            {/* Horario */}
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Horario</label>
-              {loadingSlots ? (
-                <div className="flex items-center gap-2 text-xs text-gray-400 p-2.5"><Loader2 size={14} className="animate-spin" /> Cargando...</div>
-              ) : (
-                <select
-                  value={slotSeleccionado ? `${slotSeleccionado.horaIni}|${slotSeleccionado.horaFin}` : ""}
-                  disabled={!fecha || slots.length === 0}
-                  onChange={(e) => {
-                    if (!e.target.value) { setSlotSeleccionado(null); return; }
-                    const [horaIni, horaFin] = e.target.value.split("|");
-                    setSlotSeleccionado({ horaIni, horaFin });
-                  }}
-                  className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-unahur outline-none bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <option value="">
-                    {fecha && slots.length === 0 && !loadingSlots ? "Sin horarios disponibles" : "Seleccionar..."}
-                  </option>
-                  {slots.map((s) => (
-                    <option key={`${s.horaIni}|${s.horaFin}`} value={`${s.horaIni}|${s.horaFin}`}>
-                      {s.horaIni} hs
-                    </option>
-                  ))}
-                </select>
+          </div>
+
+          {/* Horario */}
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase">Horario</label>
+              {slotSeleccionado && (
+                <span className="rounded-full bg-unahur/10 px-2.5 py-1 text-[10px] font-black text-unahur">
+                  {slotSeleccionado.horaIni} hs seleccionado
+                </span>
               )}
             </div>
+
+            {loadingSlots ? (
+              <div className="flex items-center gap-2 text-xs text-gray-400 p-2.5">
+                <Loader2 size={14} className="animate-spin" /> Cargando horarios...
+              </div>
+            ) : !fecha ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs font-semibold text-gray-400">
+                Seleccioná una fecha para ver los horarios disponibles.
+              </div>
+            ) : slots.length === 0 ? (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-4 text-center text-xs font-bold text-amber-700">
+                No hay horarios disponibles para la fecha seleccionada.
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 mb-3">
+                  <Clock size={14} className="text-unahur" />
+                  Horarios disponibles
+                </div>
+
+                <div className="space-y-4">
+                  {slotsAgrupados.map((group) => (
+                    <div key={group.id}>
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-[1.5px] text-gray-400">
+                        {group.label}
+                      </p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {group.slots.map((slot) => {
+                          const selected = slotSeleccionado ? getSlotKey(slotSeleccionado) === getSlotKey(slot) : false;
+
+                          return (
+                            <button
+                              key={getSlotKey(slot)}
+                              type="button"
+                              onClick={() => setSlotSeleccionado(slot)}
+                              aria-pressed={selected}
+                              className={`rounded-xl border px-3 py-2.5 text-sm font-black transition-all ${
+                                selected
+                                  ? "border-unahur bg-unahur text-white shadow-lg shadow-green-100"
+                                  : "border-gray-200 bg-white text-gray-700 hover:border-unahur hover:bg-unahur/5 hover:text-unahur"
+                              }`}
+                            >
+                              {slot.horaIni}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Motivo */}
