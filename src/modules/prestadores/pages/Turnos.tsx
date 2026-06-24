@@ -290,6 +290,11 @@ function NuevoTurnoModal({ fechaDefault, onClose, onGuardar }) {
 function NotaModal({ turno, fecha, onClose, onSave }) {
   const [texto, setTexto] = useState(turno.nota ?? '')
   const [error, setError] = useState('')
+  const horario = turno.hora || (
+    turno.horaInicio && turno.horaFin
+      ? `${turno.horaInicio} - ${turno.horaFin}`
+      : turno.horaInicio || turno.horaFin || ''
+  )
 
   function guardar() {
     const limpio = texto.trim()
@@ -327,7 +332,7 @@ function NotaModal({ turno, fecha, onClose, onSave }) {
           </div>
           <div>
             <p className="text-sm font-600 text-slate-800">Paciente {turno.nombre}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{fecha} — {turno.hora} — {turno.horaFin ?? '11:30'}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{fecha}{horario ? ` — ${horario}` : ''}</p>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../context/AuthContext'
 import { api } from '../../../services/api'
@@ -144,10 +145,10 @@ function PerfilModal({ prestador, onClose }) {
   const specialties = profile?.especialidades || []
   const places = profile?.lugaresAtencion || []
 
-  return (
+  return createPortal(
     <div
       onMouseDown={onClose}
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6"
     >
       <div
         onMouseDown={e => e.stopPropagation()}
@@ -318,7 +319,8 @@ function PerfilModal({ prestador, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -434,10 +436,10 @@ function ConfiguracionModal({ onClose }) {
     setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }))
   }
 
-  return (
+  return createPortal(
     <div
       onMouseDown={onClose}
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm p-3 sm:p-6"
     >
       <div
         onMouseDown={e => e.stopPropagation()}
@@ -530,7 +532,8 @@ function ConfiguracionModal({ onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -42,7 +42,7 @@ export function LoginAfiliado() {
       {/* Panel izquierdo — 45% */}
       <div className="hidden lg:flex w-[45%] flex-shrink-0 flex-col justify-between bg-gradient-to-b from-green-50 to-slate-100 p-10 border-r border-slate-200">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="MediUnahur" className="w-10 h-10 object-contain" />
+          <img src="/logo.png" alt="OSDU" className="w-10 h-10 object-contain" />
           <div>
             <p className="text-base font-bold text-slate-800 leading-tight">OSDU</p>
             <p className="text-xs text-slate-400 leading-tight">Afiliados</p>
@@ -87,8 +87,8 @@ export function LoginAfiliado() {
 
           {/* Logo solo en mobile */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <img src="/logo.png" alt="MediUnahur" className="w-8 h-8 object-contain" />
-            <p className="text-sm font-bold text-slate-800">MediUnahur</p>
+            <img src="/logo.png" alt="OSDU" className="w-8 h-8 object-contain" />
+            <p className="text-sm font-bold text-slate-800">OSDU</p>
           </div>
 
           <h1 className="text-2xl font-bold text-slate-800 mb-1">Iniciar sesión</h1>
