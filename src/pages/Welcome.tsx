@@ -104,24 +104,13 @@ const ACCESOS_RAPIDOS = [
 
 type SitioTipo = "afiliados" | "prestadores";
 
-function BrandMark({ useImage = false, className = "w-9 h-9" }: { useImage?: boolean; className?: string }) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  if (useImage && !imageFailed) {
-    return (
-      <img
-        src="/logo.png"
-        alt="OSDU"
-        className={`${className} object-contain flex-shrink-0`}
-        onError={() => setImageFailed(true)}
-      />
-    );
-  }
-
+function BrandMark({ className = "w-9 h-9" }: { className?: string }) {
   return (
-    <div className={`${className} bg-unahur rounded-xl flex items-center justify-center shadow-sm flex-shrink-0`}>
-      <span className="text-white font-black text-lg leading-none">U</span>
-    </div>
+    <img
+      src="/logo.png"
+      alt="OSDU"
+      className={`${className} object-contain flex-shrink-0`}
+    />
   );
 }
 
@@ -172,7 +161,7 @@ export function Welcome() {
 
           {/* Logo */}
           <div className="flex min-w-0 items-center gap-3 flex-shrink-0">
-            <BrandMark useImage={esPrestadores} className={esPrestadores ? "h-10 w-12 sm:h-12 sm:w-16" : "w-9 h-9"} />
+            <BrandMark className={esPrestadores ? "h-10 w-12 sm:h-12 sm:w-16" : "w-9 h-9"} />
             <div className="min-w-0">
               <p className="text-sm font-black text-slate-900 leading-none">OSDU</p>
               <p className="text-[10px] text-slate-400 leading-none mt-0.5">Obra Social de Universitarios</p>
@@ -344,11 +333,7 @@ export function Welcome() {
       <footer className="bg-slate-900 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <div className="flex items-center gap-3">
-            {esPrestadores ? (
-              <BrandMark useImage className="h-9 w-12" />
-            ) : (
-              <BrandMark className="w-7 h-7" />
-            )}
+            <BrandMark className={esPrestadores ? "h-9 w-12" : "w-7 h-7"} />
             <span className="text-slate-400 text-xs font-medium">
               OSDU · Obra Social de Universitarios
             </span>
