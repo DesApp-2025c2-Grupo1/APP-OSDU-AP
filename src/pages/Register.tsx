@@ -492,8 +492,8 @@ export function Register() {
       {/* Panel izquierdo */}
       <div className="hidden lg:flex w-[40%] flex-shrink-0 flex-col justify-between bg-gradient-to-b from-green-50 to-slate-100 p-10 border-r border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-unahur rounded-xl flex items-center justify-center shadow-sm">
-            <span className="text-white font-black text-lg leading-none">U</span>
+          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-green-100">
+            <img src="/logo.png" alt="OSDU" className="h-8 w-8 object-contain" />
           </div>
           <div>
             <p className="text-sm font-black text-slate-800 leading-tight">OSDU</p>

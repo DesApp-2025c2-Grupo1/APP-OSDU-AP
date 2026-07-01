@@ -31,7 +31,7 @@ export function LoginSelector() {
 
             <div className="relative z-10">
               <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl transform -rotate-3 hover:rotate-3 transition-transform duration-300">
-                <span className="text-unahur font-black text-3xl">U</span>
+                <img src="/logo.png" alt="OSDU" className="h-12 w-12 object-contain" />
               </div>
               <h1 className="text-white font-black text-2xl tracking-tighter">Obra Social de Universitarios</h1>
               <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mt-2">Selecciona tu tipo de acceso</p>
